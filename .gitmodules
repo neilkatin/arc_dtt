@@ -1,0 +1,3 @@
+[submodule "neil_tools"]
+	path = neil_tools
+	url = https://github.com/neilkatin/neil_tools
