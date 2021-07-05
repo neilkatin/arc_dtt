@@ -1,3 +1,4 @@
 .*.swp
 .env
 dtt.cookies
+o365_token.txt

@@ -8,6 +8,12 @@ verify_ssl = true
 [packages]
 python-dotenv = "*"
 requests-html = "*"
+oauthlib = "*"
+requests-oauthlib = "*"
+stringcase = "*"
+tzlocal = "*"
+pytz = "*"
+python-dateutil = "*"
 
 [requires]
 python_version = "3.8"
