@@ -30,6 +30,7 @@ from O365_local.excel import WorkBook as o365_WorkBook
 NOW = datetime.datetime.now().astimezone()
 DATESTAMP = NOW.strftime("%Y-%m-%d")
 TIMESTAMP = NOW.strftime("%Y-%m-%d %H:%M:%S %Z")
+FILESTAMP = NOW.strftime("%Y-%m-%d %H-%M-%S %Z")
 
 
 def main():
@@ -40,29 +41,33 @@ def main():
 
     config = neil_tools.init_config(config_static, ".env")
 
-    session = web_session.get_session(config)
+    if True:
+        session = web_session.get_session(config)
 
-    # ZZZ: should validate session here, and re-login if it isn't working...
-    get_dr_list(config, session)
+        # ZZZ: should validate session here, and re-login if it isn't working...
+        get_dr_list(config, session)
 
-    #log.debug(f"DR_ID { config.DR_ID } DR_NAME { config.DR_NAME }")
+        log.debug(f"DR_ID { config.DR_ID } DR_NAME { config.DR_NAME }")
 
-    # get people and vehicles from the DTT
-    vehicles = get_vehicles(config, session)
-    people = get_people(config, session)
+        # get people and vehicles from the DTT
+        vehicles = get_vehicles(config, session)
+        people = get_people(config, session)
 
     # fetch the avis report
     account = init_o365(config)
 
-    # fetch the avis spreadsheet
-    fetch_avis(config, account, vehicles)
+    if True:
+        # fetch the avis spreadsheet
+        output_bytes = fetch_avis(config, account, vehicles)
+
+    store_report(config, account, output_bytes)
 
 
 def fetch_avis(config, account, vehicles):
     """ fetch the latest avis vehicle report from sharepoint """
 
     storage = account.storage()
-    drive = storage.get_drive(config.NHQDCSDLC_DRIVE_ID)
+    drive = storage.get_drive(config.NHQDCSDLC_DRIVEID)
     fy21 = drive.get_item_by_path(config.FY21_ITEM_PATH)
 
     children = fy21.get_items()
@@ -132,8 +137,10 @@ def fetch_avis(config, account, vehicles):
     bufferview = iobuffer.getbuffer()
     log.debug(f"output spreadsheet length: { len(bufferview) }")
 
-    with open("temp.xlsx", "wb") as fb:
-        fb.write(bufferview)
+    #with open("temp.xlsx", "wb") as fb:
+    #    fb.write(bufferview)
+
+    return bufferview
 
 
 def copy_avis_sheet(ws, title, columns, rows):
@@ -220,6 +227,12 @@ def copy_avis_sheet(ws, title, columns, rows):
                 ws.cell(row=row, column=col, value=value)
 
             col += 1
+
+    last_col_letter = openpyxl.utils.get_column_letter(col -1)
+    table_ref = f"A1:{last_col_letter}{row}"
+    log.debug(f"last col letter { last_col_letter }, table_ref { table_ref }")
+    table = openpyxl.worksheet.table.Table(displayName='AvisOpen', ref=table_ref)
+    ws.add_table(table)
 
     return output_columns
 
@@ -311,7 +324,7 @@ def match_avis_sheet(ws, columns, avis, vehicles):
         key_id = get_dtt_id(v_key, key)
         plate_id = get_dtt_id(v_plate, plate)
 
-        log.debug(f"ra { ra_id } res { res_id } key { key_id } plate { plate_id }; raw { ra } { res } { key } { plate }")
+        #log.debug(f"ra { ra_id } res { res_id } key { key_id } plate { plate_id }; raw { ra } { res } { key } { plate }")
 
         if ra_id == None and res_id == None and key_id == None and plate_id == None:
             # vehicle doesn't appear in the DTT at all; color it blue
@@ -350,6 +363,7 @@ def insert_overview(wb, config):
     ws = wb.create_sheet('Overview', 0)
 
     ws.column_dimensions['A'].width = 120       # hard coded width....
+    ws.row_dimensions[1].height = 1000          # hard coded height....
 
     doc_string = f"""
 This document has vehicles from the daily Avis report for this DR ({ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR }).
@@ -373,7 +387,7 @@ This file generated at { TIMESTAMP }
 """
 
     cell = ws.cell(row=1, column=1, value=doc_string)
-    cell.alignment = openpyxl.styles.Alignment(wrapText=True)
+    cell.alignment = openpyxl.styles.Alignment(wrapText=True, vertical='top')
 
 
 
@@ -382,7 +396,7 @@ def read_avis_sheet(config, sheet):
     log.debug(f"sheet name { sheet.name }")
     sheet_range = sheet.get_used_range()
 
-    log.debug(f"last_column { sheet_range.get_last_column() } last_row { sheet_range.get_last_row() }")
+    #log.debug(f"last_column { sheet_range.get_last_column() } last_row { sheet_range.get_last_row() }")
 
     values = sheet_range.values
 
@@ -472,6 +486,27 @@ def get_dr_list(config, session):
     # for now, while we only have access to one DR: pick the last value
     config['DR_ID'] = value
     config['DR_NAME'] = text
+
+
+def store_report(config, account, wb_bytes):
+    """ store the report.  for now: stash it in the Transportation/Reports file store. """
+
+    log.debug("called")
+    storage = account.storage()
+    drive = storage.get_drive(config.TRANS_REPORTS_DRIVEID)
+    reports = drive.get_item_by_path(config.TRANS_REPORTS_FOLDER_PATH)
+
+    stream = io.BytesIO(wb_bytes)
+    stream.seek(0, io.SEEK_END)
+    stream_size = stream.tell()
+    stream.seek(0, io.SEEK_SET)
+
+    log.debug(f"stream_size is { stream_size }")
+
+    item_name = f"DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR } Avis Report { FILESTAMP }.xlsx"
+
+    result = reports.upload_file(item_name, item_name=item_name, stream=stream, stream_size=stream_size, conflict_handling='replace')
+    log.debug(f"after upload: result { result }")
 
 
 
