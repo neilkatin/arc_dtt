@@ -60,7 +60,15 @@ def main():
         # fetch the avis spreadsheet
         output_bytes = fetch_avis(config, account, vehicles)
 
-    store_report(config, account, output_bytes)
+    if args.store:
+        store_report(config, account, output_bytes)
+    else:
+        # save a local copy instead
+        file_name = 'temp.xlsx'
+        log.debug(f"storing avis report to { file_name }")
+        with open(file_name, "wb") as fb:
+            fb.write(output_bytes)
+
 
 
 def fetch_avis(config, account, vehicles):
@@ -136,9 +144,6 @@ def fetch_avis(config, account, vehicles):
 
     bufferview = iobuffer.getbuffer()
     log.debug(f"output spreadsheet length: { len(bufferview) }")
-
-    #with open("temp.xlsx", "wb") as fb:
-    #    fb.write(bufferview)
 
     return bufferview
 
@@ -515,6 +520,7 @@ def parse_args():
             description="tools to support Disaster Transportation Tools reporting",
             allow_abbrev=False)
     parser.add_argument("--debug", help="turn on debugging output", action="store_true")
+    parser.add_argument("-s", "--store", help="Store file on server", action="store_true")
 
     #group = parser.add_mutually_exclusive_group(required=True)
     #group.add_argument("-p", "--prod", "--production", help="use production settings", action="store_true")
