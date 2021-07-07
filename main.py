@@ -58,7 +58,7 @@ def main():
     account = init_o365(config)
 
     # avis report
-    if True:
+    if not args.ignore_avis:
         # fetch the avis spreadsheet
         output_bytes = fetch_avis(config, account, vehicles)
 
@@ -72,10 +72,10 @@ def main():
             with open(file_name, "wb") as fb:
                 fb.write(output_bytes)
 
-    # gap report
-    if True:
-        # generate the gap report
-        output_bytes = make_gap_report(config, vehicles)
+    # group vehicle report
+    if not args.ignore_group:
+        # generate the group report
+        output_bytes = make_group_report(config, vehicles)
 
         if args.store:
             item_name = f"DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR } Vehicles by GAP { FILESTAMP }.xlsx"
@@ -411,7 +411,7 @@ This file generated at { TIMESTAMP }
     ws = insert_overview(wb, doc_string)
     return ws
 
-def insert_gap_overview(wb, config):
+def insert_group_overview(wb, config):
 
     doc_string = f"""
 This document has vehicles for DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR }.
@@ -574,11 +574,11 @@ def store_report(config, account, item_name, wb_bytes):
     log.debug(f"after upload: result { result }")
 
 
-def make_gap_report(config, vehicles):
+def make_group_report(config, vehicles):
     """ make a workbook of all vehicles, arranged by GAPs """
 
     wb = openpyxl.Workbook()
-    insert_gap_overview(wb, config)
+    insert_group_overview(wb, config)
 
     # sort the vehicles by GAP
     vehicles = sorted(vehicles, key=lambda x: x['Vehicle']['GAP'])
@@ -598,6 +598,19 @@ def make_gap_report(config, vehicles):
     return bufferview
 
 
+gap_to_group_re = re.compile('^([A-Z]+)')
+def gap_to_group(gap):
+    """ turn a Gap (Group/Activity/Position) name into just the Group portion """
+
+    match = gap_to_group_re.match(gap)
+
+    if match is None:
+        return None
+
+    return match.group(1)
+
+
+
 def get_vehicle_gap_groups(vehicles):
     """ return a sorted list of groups from the gaps in the vehicles """
 
@@ -607,13 +620,13 @@ def get_vehicle_gap_groups(vehicles):
 
     for vehicle in vehicles:
         gap = vehicle['Vehicle']['GAP']
+        group = gap_to_group(gap)
 
-        match = group_re.match(gap)
-        if match is None:
+        if group is None:
             log.info("Could not find the Group in gap '{ gap }' vehicle { vehicle }")
         else:
             # remember that we saw this group; don't worry about duplicates
-            groups[match.group(1)] = True
+            groups[group] = True
 
     return sorted(groups.keys())
 
@@ -661,6 +674,7 @@ def add_gap_sheet(wb, sheet_name, vehicles):
             ws.column_dimensions[col_letter].auto_size = True
 
     row = 1
+    previous_group = None
     for vehicle in vehicles:
 
         # only process active vehicles
@@ -668,16 +682,24 @@ def add_gap_sheet(wb, sheet_name, vehicles):
             #log.debug(f"ignorning inactive vehicle { vehicle }")
             continue
 
-        row = row + 1
+        row += 1
         col = 0
+
+        row_vehicle = vehicle['Vehicle']
+        gap = row_vehicle['GAP']
+        group = gap_to_group(gap)
+
+        # leave a blank row when the group changes
+        if group != previous_group:
+            if previous_group is not None:
+                row += 1
+            previous_group = group
 
         for key, defs in column_defs.items():
             col = col + 1
 
             try:
                 lookup_func = defs['key']
-                row_vehicle = vehicle['Vehicle']
-                gap = row_vehicle['GAP']
                 value = lookup_func(row_vehicle)
 
                 if value == 'None' or value == 'None None' or value == 'None None None':
@@ -700,6 +722,8 @@ def parse_args():
             allow_abbrev=False)
     parser.add_argument("--debug", help="turn on debugging output", action="store_true")
     parser.add_argument("-s", "--store", help="Store file on server", action="store_true")
+    parser.add_argument("--ignore-avis", help="Don't generate an Avis match report", action="store_true")
+    parser.add_argument("--ignore-group", help="Don't generate a Group Vehicle report", action="store_true")
 
     #group = parser.add_mutually_exclusive_group(required=True)
     #group.add_argument("-p", "--prod", "--production", help="use production settings", action="store_true")
