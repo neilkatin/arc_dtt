@@ -41,6 +41,7 @@ def main():
 
     config = neil_tools.init_config(config_static, ".env")
 
+    # fetch from DTT
     if True:
         session = web_session.get_session(config)
 
@@ -56,20 +57,36 @@ def main():
     # fetch the avis report
     account = init_o365(config)
 
+    # avis report
     if True:
         # fetch the avis spreadsheet
         output_bytes = fetch_avis(config, account, vehicles)
 
-    if args.store:
-        store_report(config, account, output_bytes)
-    else:
-        # save a local copy instead
-        file_name = 'temp.xlsx'
-        log.debug(f"storing avis report to { file_name }")
-        with open(file_name, "wb") as fb:
-            fb.write(output_bytes)
+        if args.store:
+            item_name = f"DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR } Avis Report { FILESTAMP }.xlsx"
+            store_report(config, account, item_name, output_bytes)
+        else:
+            # save a local copy instead
+            file_name = 'avis.xlsx'
+            log.debug(f"storing avis report to { file_name }")
+            with open(file_name, "wb") as fb:
+                fb.write(output_bytes)
 
+    # gap report
+    if True:
+        # generate the gap report
+        output_bytes = make_gap_report(config, vehicles)
 
+        if args.store:
+            item_name = f"DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR } Vehicles by GAP { FILESTAMP }.xlsx"
+            store_report(config, account, item_name, output_bytes)
+
+        else:
+            # save a local copy instead
+            file_name = 'gap.xlsx'
+            log.debug(f"storing gap report to { file_name }")
+            with open(file_name, "wb") as fb:
+                fb.write(output_bytes)
 
 def fetch_avis(config, account, vehicles):
     """ fetch the latest avis vehicle report from sharepoint """
@@ -116,7 +133,7 @@ def fetch_avis(config, account, vehicles):
     config['AVIS_FILE'] = newest_ref.name
 
     output_wb = openpyxl.Workbook()
-    insert_overview(output_wb, config)
+    insert_avis_overview(output_wb, config)
 
     output_ws_open = output_wb.create_sheet("Open RA")
 
@@ -128,25 +145,29 @@ def fetch_avis(config, account, vehicles):
     output_columns = copy_avis_sheet(output_ws_open, avis_title, avis_open_columns, avis_open)
     match_avis_sheet(output_ws_open, output_columns, avis_open, vehicles)
 
+    # now serialize the workbook
+    bufferview = workbook_to_buffer(output_wb)
 
+    return bufferview
+
+def workbook_to_buffer(wb):
+    """ serialize a workbook to a byte array so it can be saved (either to network or locally) """
 
     # cleanup: delete the default sheet name in the output workbook
     default_sheet_name = 'Sheet'
-    if default_sheet_name in output_wb:
-        del output_wb[default_sheet_name]
+    if default_sheet_name in wb:
+        del wb[default_sheet_name]
 
-    # now save the workbook to sharepoint...
-    # ZZZ: how?
+
     iobuffer = io.BytesIO()
     zipbuffer = zipfile.ZipFile(iobuffer, mode='w')
-    writer = openpyxl.writer.excel.ExcelWriter(output_wb, zipbuffer)
+    writer = openpyxl.writer.excel.ExcelWriter(wb, zipbuffer)
     writer.save()
 
     bufferview = iobuffer.getbuffer()
     log.debug(f"output spreadsheet length: { len(bufferview) }")
 
     return bufferview
-
 
 def copy_avis_sheet(ws, title, columns, rows):
     """ copy avis data to the output ws """
@@ -363,12 +384,8 @@ def match_avis_sheet(ws, columns, avis, vehicles):
 
 
 
-def insert_overview(wb, config):
+def insert_avis_overview(wb, config):
     """ insert an overview (documentation) sheet in the workbook """
-    ws = wb.create_sheet('Overview', 0)
-
-    ws.column_dimensions['A'].width = 120       # hard coded width....
-    ws.row_dimensions[1].height = 1000          # hard coded height....
 
     doc_string = f"""
 This document has vehicles from the daily Avis report for this DR ({ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR }).
@@ -391,10 +408,55 @@ This file generated at { TIMESTAMP }
 
 """
 
+    ws = insert_overview(wb, doc_string)
+    return ws
+
+def insert_gap_overview(wb, config):
+
+    doc_string = f"""
+This document has vehicles for DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR }.
+
+Directions for completing the Group Vehice Report
+
+Transportation: Send report to Job Director, Section Leads/Assistant
+Directors and Group Leads. Use Contact Roster in IAP for current list.
+
+Section Leads/Assistant Directors/ Group Leads - Please have Vehicle Report reviewed for accuracy.                                     
+
+Asset Management is the responsibility of the Group Leads.
+
+1) Groups are separated by TABS. Please review the appropriate TAB and complete Coumns P,Q R and S.
+
+2) If the answer is NO in Columns P,Q and R, please mark appropriate line with an X. If the work
+location is incorrect,   please note current location of Driver/vehicle.
+
+3) If the answer to Column S is YES and you can relinquish a vehicle, please mark appropriate line with an X.                       
+
+4) Return Worksheet within 2 days of receipt to DRXXX-XXLOG-TRA1@redcross.org. If there were no changes
+to your Group's vehicle list type in the body of the email - Group name (IDC, IP,..) and "No Changes".                                                         
+5) Copy Section Lead/Assistant Director on email.
+
+This file generated at { TIMESTAMP }
+
+"""
+
+    ws = insert_overview(wb, doc_string)
+    return ws
+
+
+
+
+def insert_overview(wb, doc_string):
+
+    ws = wb.create_sheet('Overview', 0)
+
+    ws.column_dimensions['A'].width = 120       # hard coded width....
+    ws.row_dimensions[1].height = 500           # hard coded height....
+
     cell = ws.cell(row=1, column=1, value=doc_string)
     cell.alignment = openpyxl.styles.Alignment(wrapText=True, vertical='top')
 
-
+    return ws
 
 def read_avis_sheet(config, sheet):
 
@@ -493,7 +555,7 @@ def get_dr_list(config, session):
     config['DR_NAME'] = text
 
 
-def store_report(config, account, wb_bytes):
+def store_report(config, account, item_name, wb_bytes):
     """ store the report.  for now: stash it in the Transportation/Reports file store. """
 
     log.debug("called")
@@ -508,10 +570,127 @@ def store_report(config, account, wb_bytes):
 
     log.debug(f"stream_size is { stream_size }")
 
-    item_name = f"DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR } Avis Report { FILESTAMP }.xlsx"
-
     result = reports.upload_file(item_name, item_name=item_name, stream=stream, stream_size=stream_size, conflict_handling='replace')
     log.debug(f"after upload: result { result }")
+
+
+def make_gap_report(config, vehicles):
+    """ make a workbook of all vehicles, arranged by GAPs """
+
+    wb = openpyxl.Workbook()
+    insert_gap_overview(wb, config)
+
+    # sort the vehicles by GAP
+    vehicles = sorted(vehicles, key=lambda x: x['Vehicle']['GAP'])
+
+    # add the master sheet
+    add_gap_sheet(wb, 'Master', vehicles)
+
+    gap_list = get_vehicle_gap_groups(vehicles)
+
+    for group in gap_list:
+        group_vehicles = filter_by_gap_group(group, vehicles)
+        add_gap_sheet(wb, group, group_vehicles)
+
+    # serialize the workbook
+    bufferview = workbook_to_buffer(wb)
+
+    return bufferview
+
+
+def get_vehicle_gap_groups(vehicles):
+    """ return a sorted list of groups from the gaps in the vehicles """
+
+    group_re = re.compile('^([A-Z]+)')
+
+    groups = {}
+
+    for vehicle in vehicles:
+        gap = vehicle['Vehicle']['GAP']
+
+        match = group_re.match(gap)
+        if match is None:
+            log.info("Could not find the Group in gap '{ gap }' vehicle { vehicle }")
+        else:
+            # remember that we saw this group; don't worry about duplicates
+            groups[match.group(1)] = True
+
+    return sorted(groups.keys())
+
+
+
+def filter_by_gap_group(group, vehicles):
+    """ only return the vehicles whos GAP starts with the group """
+
+    # we cheat a bit because we 'know' no GAP Groups are a prefix of another
+    return filter(lambda x: x['Vehicle']['GAP'].startswith(group), vehicles)
+
+
+def add_gap_sheet(wb, sheet_name, vehicles):
+    """ make a new sheet with the specified vehicles """
+
+    ws = wb.create_sheet(sheet_name)
+
+    column_defs = {
+            'GAP':          { 'width': 15, 'key': lambda x: x['GAP'], },
+            'Driver':       { 'width': 30, 'key': lambda x: x['CurrentDriverName'], },
+            'Key Number':   { 'width': 12, 'key': lambda x: x['KeyNumber'], },
+            'Vendor':       { 'width': 20, 'key': lambda x: x['Vendor'], },
+            'Car Info':     { 'width': 25, 'key': lambda x: f"{ x['Make'] } { x['Model'] } { x['Color'] }", },
+            'Plate':        { 'width': 15, 'key': lambda x: f"{ x['PlateState'] } { x['Plate'] }", },
+            'Type':         { 'width': 10, 'key': lambda x: x['VehicleType'], },
+            'District':     { 'width': 10, 'key': lambda x: x['District'], },
+            'Location':     { 'width': 30, 'key': lambda x: x['CurrentDriverWorkLocationName'], },
+            'Lodging':      { 'width': 30, 'key': lambda x: x['CurrentDriverLodging'], },
+            'Reservation':  { 'width': 15, 'key': lambda x: x['RentalAgreementReservationNumber'], },
+            'Outprocessed': { 'width': 15, 'key': lambda x: "" if not x['OutProcessed'] else "OUTPROCESSED", },
+        }
+
+    row = 1
+    col = 0
+    for key, defs in column_defs.items():
+        col = col + 1
+        title = key
+        cell = ws.cell(row=row, column=col, value=title)
+
+        col_letter = openpyxl.utils.get_column_letter(col)
+        if 'width' in defs:
+            #log.debug(f"setting column { col_letter } to width { defs['width'] }")
+            ws.column_dimensions[col_letter].width = defs['width']
+        else:
+            ws.column_dimensions[col_letter].auto_size = True
+
+    row = 1
+    for vehicle in vehicles:
+
+        # only process active vehicles
+        if vehicle['Status'] != 'Active':
+            #log.debug(f"ignorning inactive vehicle { vehicle }")
+            continue
+
+        row = row + 1
+        col = 0
+
+        for key, defs in column_defs.items():
+            col = col + 1
+
+            try:
+                lookup_func = defs['key']
+                row_vehicle = vehicle['Vehicle']
+                gap = row_vehicle['GAP']
+                value = lookup_func(row_vehicle)
+
+                if value == 'None' or value == 'None None' or value == 'None None None':
+                    # no valid data; make it a blank
+                    value = ''
+                cell = ws.cell(row=row, column=col, value=value)
+            except:
+                log.info(f"Could not expand column { key } row_vehicle { row_vehicle }: { sys.exc_info()[0] }")
+
+    last_col_letter = openpyxl.utils.get_column_letter(col)
+    table_ref = f"A1:{ last_col_letter }{ row }"
+    table = openpyxl.worksheet.table.Table(displayName=f"{ sheet_name }Table", ref=table_ref)
+    ws.add_table(table)
 
 
 
