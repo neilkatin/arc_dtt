@@ -1,6 +1,6 @@
 DTT data formats (all-caps fields are placeholders that have been changed to protect privacy)
 
-From api/Diaster/<DR ID>/People/Details:  JSON array
+From api/Diaster/&lt;DR ID&gt;/People/Details:  JSON array
 
 ```json
  {
@@ -28,7 +28,7 @@ From api/Diaster/<DR ID>/People/Details:  JSON array
   },
 ```
 
-From api/Disaster/<DR ID>/Vehicles: JSON array
+From api/Disaster/&lt;DR ID&gt;/Vehicles: JSON array
 
 ```json
  {
