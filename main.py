@@ -32,6 +32,18 @@ DATESTAMP = NOW.strftime("%Y-%m-%d")
 TIMESTAMP = NOW.strftime("%Y-%m-%d %H:%M:%S %Z")
 FILESTAMP = NOW.strftime("%Y-%m-%d %H-%M-%S %Z")
 
+# flag field in vehicle structures
+IN_AVIS = '__IN_AVIS__'
+
+# flag fields in avis structures
+MISSING_AVIS_OPEN = '__MISSING_AVIS_OPEN__'
+MISSING_AVIS_ALL = '__MISSING_AVIS_ALL__'
+
+FILL_RED = openpyxl.styles.PatternFill(fgColor="FFC0C0", fill_type = "solid")
+FILL_GREEN = openpyxl.styles.PatternFill(fgColor="C0FFC0", fill_type = "solid")
+FILL_YELLOW = openpyxl.styles.PatternFill(fgColor="FFFFC0", fill_type = "solid")
+FILL_BLUE = openpyxl.styles.PatternFill(fgColor="5BB1CD", fill_type = "solid")
+FILL_CYAN = openpyxl.styles.PatternFill(fgColor="A0FFFF", fill_type = "solid")
 
 def main():
     args = parse_args()
@@ -60,7 +72,7 @@ def main():
     # avis report
     if not args.ignore_avis:
         # fetch the avis spreadsheet
-        output_bytes = fetch_avis(config, account, vehicles)
+        output_bytes = make_avis(config, account, vehicles)
 
         if args.store:
             item_name = f"DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR } Avis Report { FILESTAMP }.xlsx"
@@ -88,8 +100,8 @@ def main():
             with open(file_name, "wb") as fb:
                 fb.write(output_bytes)
 
-def fetch_avis(config, account, vehicles):
-    """ fetch the latest avis vehicle report from sharepoint """
+def fetch_avis(config, account):
+    """ get the most recent avis workbook """
 
     storage = account.storage()
     drive = storage.get_drive(config.NHQDCSDLC_DRIVEID)
@@ -128,27 +140,39 @@ def fetch_avis(config, account, vehicles):
     log.debug(f"total items: { count } mismatched { mismatch }")
 
     if newest_ref is None:
-        raise Exception("fetch_avis: no valid files found")
+        raise Exception("make_avis: no valid files found")
     log.debug(f"newest_file { newest_ref.name }")
     config['AVIS_FILE'] = newest_ref.name
+
+    workbook = o365_WorkBook(newest_ref, persist=False)
+
+    return workbook
+
+def make_avis(config, account, vehicles):
+    """ fetch the latest avis vehicle report from sharepoint """
+
+    workbook = fetch_avis(config, account)
 
     output_wb = openpyxl.Workbook()
     insert_avis_overview(output_wb, config)
 
+
     output_ws_open = output_wb.create_sheet("Open RA")
 
     # we now have the latest file.  Suck out all the data
-    workbook = o365_WorkBook(newest_ref, persist=False)
-    avis_title, avis_open_columns, avis_open = read_avis_sheet(config, workbook.get_worksheet('Open RA'))
-    #avis_closed = read_avis_sheet(workbook.get_worksheet('Closed RA'))
+    avis_title, avis_open_columns, avis_open, avis_all = read_avis_sheet(config, workbook.get_worksheet('Open RA'))
+    add_missing_avis_vehicles(vehicles, avis_all, avis_open)
 
-    output_columns = copy_avis_sheet(output_ws_open, avis_title, avis_open_columns, avis_open)
+    # generate the 'Open RA' sheet
+    output_columns = copy_avis_sheet(output_ws_open, avis_open_columns, avis_title, avis_open)
     match_avis_sheet(output_ws_open, output_columns, avis_open, vehicles)
 
     # now serialize the workbook
     bufferview = workbook_to_buffer(output_wb)
 
     return bufferview
+
+
 
 def workbook_to_buffer(wb):
     """ serialize a workbook to a byte array so it can be saved (either to network or locally) """
@@ -169,7 +193,9 @@ def workbook_to_buffer(wb):
 
     return bufferview
 
-def copy_avis_sheet(ws, title, columns, rows):
+
+
+def copy_avis_sheet(ws, columns, title, rows):
     """ copy avis data to the output ws """
     wrap_alignment = openpyxl.styles.Alignment(wrapText=True, horizontal='center')
 
@@ -190,7 +216,7 @@ def copy_avis_sheet(ws, title, columns, rows):
     col = 1
     output_columns = {}
     for index, key in enumerate(title):
-        if key != '' and key != 'CO Time' and key != 'Exp CI Time':
+        if key != '' and key != 'CO Time' and key != 'Exp CI Time' and not key.startswith('__'):
             cell = ws.cell(row=row, column=col, value=key)
             cell.alignment = wrap_alignment
             col_letter = openpyxl.utils.get_column_letter(col)
@@ -209,11 +235,18 @@ def copy_avis_sheet(ws, title, columns, rows):
     for row_data in rows:
         row += 1
         col = 1
-        for key, value in row_data.items():
+        for key in output_columns:
+
 
             # ignore columns without a name and meta-entries
             if key == '' or key.startswith('__'):
                 continue
+
+            if key not in row_data:
+                col += 1
+                continue
+
+            value = row_data[key]
 
             # fold time columns into their date columns
             time_key = None
@@ -264,9 +297,37 @@ def copy_avis_sheet(ws, title, columns, rows):
 
 
 
-def make_index(vehicles, first_field, second_field=None, cleanup=False):
+def cleanup_v_field(vehicle, field_name):
+    """ do field cleanup for vehicle entries """
 
-    #log.debug(f"make_index: vehicles len { len(vehicles) }, 1st_field { first_field } 2nd_field { second_field }")
+    if field_name not in vehicle:
+        return None
+
+    value = vehicle[field_name]
+
+    if value is None:
+        return None
+
+    if field_name == 'RentalAgreementNumber':
+        # rental agreements always start with 'U'; add it if not present
+        if value[0] != 'U':
+            value = 'U' + value
+
+    elif field_name == 'RentalAgreementReservationNumber':
+        # the emailed reservation number looks like 12345678-US-6; put it in cannonical form
+        value = value.replace('-', '').upper()
+
+    elif field_name == 'KeyNumber':
+        # make sure there are 9 digits in the number
+        value = value.rjust(9, '0')
+
+
+    return value
+
+
+def make_vehicle_index(vehicles, first_field, second_field=None, reservation=False, keynumber=False):
+
+    #log.debug(f"make_vehicle_index: vehicles len { len(vehicles) }, 1st_field { first_field } 2nd_field { second_field }")
     result = {}
     for row in vehicles:
         vehicle = row['Vehicle']
@@ -276,13 +337,9 @@ def make_index(vehicles, first_field, second_field=None, cleanup=False):
         if second_field is not None and second_field not in vehicle:
             continue
 
-        key = vehicle[first_field]
+        key = cleanup_v_field(vehicle, first_field)
         if key is None:
             continue
-
-        if cleanup:
-            # the emailed reservation number looks like 12345678-US-6; put it in cannonical form
-            key = key.replace('-', '').upper()
 
         if second_field is not None:
             second = vehicle[second_field]
@@ -290,10 +347,141 @@ def make_index(vehicles, first_field, second_field=None, cleanup=False):
                 continue
             key = key + " " + vehicle[second_field]
 
-        #log.debug(f"make_index: key { key }")
+        #log.debug(f"make_vehicle_index: key { key }")
         result[key] = row
 
     return result
+
+def add_missing_avis_vehicles(vehicles, avis_all, avis_open):
+    """ find Avis vehicles that are not in the Avis report """
+
+    # generate some indexes to look up values faster
+    i_ra  =   spreadsheet_tools.make_index(avis_all, 'Rental Agreement No')
+    i_res =   spreadsheet_tools.make_index(avis_all, 'Reservation No')
+    i_key =   spreadsheet_tools.make_index(avis_all, 'MVA No')
+    i_plate = spreadsheet_tools.make_index(avis_all, 'License Plate State Code', 'License Plate Number')
+
+    # note: using avis_open for this index
+    i_row =   spreadsheet_tools.make_index(avis_open, spreadsheet_tools.ROW_INDEX)
+
+    # this is duplicating work in match_avis_sheet, but it doesn't seem worth it to save the info
+    v_ra = make_vehicle_index(vehicles, 'RentalAgreementNumber')
+    v_res= make_vehicle_index(vehicles, 'RentalAgreementReservationNumber')
+    v_key = make_vehicle_index(vehicles, 'KeyNumber')
+    v_plate = make_vehicle_index(vehicles, 'PlateState', 'Plate')
+
+    # walk through the avis_open sheet and record all the matches
+    for row in avis_open:
+
+        ra = row['Rental Agreement No']
+        res = row['Reservation No']
+        key = row['MVA No']
+        plate = row['License Plate State Code'] + ' ' + row['License Plate Number']
+
+        # use DisasterVehicleID as the DTT identity for a vehicle
+        ra_id = get_dtt_id(v_ra, ra)
+        res_id = get_dtt_id(v_res, res)
+        key_id = get_dtt_id(v_key, key)
+        plate_id = get_dtt_id(v_plate, plate)
+
+
+    # get_dtt_id() records which vehicles were looked up.  Find all the ones that weren't found so far, and see if there is a DTT entry for them.
+    for record in vehicles:
+        # vehicle is not active
+        if record['Status'] != 'Active':
+            continue
+
+        # already in the Avis report
+        if IN_AVIS in record:
+            continue
+
+        # make sure its an Avis rental
+        if record['Vehicle']['Vendor'] != 'Avis':
+            continue
+
+        # see if this vehicle is in avis_all
+        vehicle = record['Vehicle']
+
+        if vehicle['KeyNumber'] is None:
+            # don't bother if there is no key number: its just a reservation
+            continue
+
+        ra = cleanup_v_field(vehicle, 'RentalAgreementNumber')
+        res = cleanup_v_field(vehicle, 'RentalAgreementReservationNumber')
+        key = cleanup_v_field(vehicle, 'KeyNumber')
+        plate = f"{ vehicle['PlateState'] } { vehicle['Plate'] }"
+
+        if ra in i_ra or res in i_res or key in i_key or plate in i_plate:
+
+            log.debug(f"Adding missing vehicle to OPEN { key }")
+
+            # one or more fields from the DTT appeared in the avis_all list, but not the avis_open list.
+            # add the row to the avis_open  list
+            new_avis_records = []
+            if ra in i_ra:
+                new_avis_records.append(i_ra[ra])
+            if res in i_res:
+                new_avis_records.append(i_res[res])
+            if key in i_key:
+                new_avis_records.append(i_key[key])
+            if plate in i_plate:
+                new_avis_records.append(i_plate[plate])
+
+            # add any records to avis_open that we don't already have
+            for row in new_avis_records:
+                row_index = row[spreadsheet_tools.ROW_INDEX]
+                if row_index not in i_row:
+                    # this row isn't in avis_open yet...
+                    row[MISSING_AVIS_OPEN] = True
+                    avis_open.append(row)
+                    i_row[row_index] = row
+
+        else:
+            # this is an entirely new vehicle that doesn't match anything in avis_all
+            log.debug(f"Adding missing vehicle to ALL { key }")
+
+            row = make_avis_from_vehicle(record)
+            row[MISSING_AVIS_ALL] = True
+            row[spreadsheet_tools.ROW_INDEX] = len(avis_all) + 1
+            avis_open.append(row)
+            avis_all.append(row)
+
+
+
+def make_avis_from_vehicle(record):
+    """ synthesize an entirely new avis record from a vehicle record """
+
+    vehicle = record['Vehicle']
+
+    def get_field(name):
+        """ utility function to safely get field values """
+        value = cleanup_v_field(vehicle, name)
+        if value is None:
+            return ""
+        return value
+
+    avis = {}
+
+    # map avis fields to vehicle fields
+    fields = {
+            'MVA No':                   'KeyNumber',
+            'License Plate State Code': 'PlateState',
+            'License Plate Number':     'Plate',
+            'Make':                     'Make',
+            'Model':                    'Model',
+            'Ext Color Code':           'Color',
+            'Reservation No':           'RentalAgreementReservationNumber',
+            'Rental Agreement No':      'RentalAgreementNumber',
+            'Full Name':                'RentalAgreementPerson',
+            }
+
+    avis['Cost Control No'] = 'MISSING'
+    for f_avis, f_vehicle in fields.items():
+        avis[f_avis] = get_field(f_vehicle)
+
+    log.debug(f"new avis record: { avis }")
+    return avis
+
 
 
 def get_dtt_id(vehicle_dict, index):
@@ -301,6 +489,9 @@ def get_dtt_id(vehicle_dict, index):
 
     if index not in vehicle_dict:
         return None
+
+    # mark the vehicle as found-in-avis-report
+    vehicle_dict[index][IN_AVIS] = True
 
     #log.debug(f"index { index } v_dict { vehicle_dict[index] }")
     return vehicle_dict[index]['DisasterVehicleID']
@@ -318,16 +509,12 @@ def mark_cell(ws, fill, row_num, col_map, col_name):
 
 def match_avis_sheet(ws, columns, avis, vehicles):
     """ match entries from the DTT to entries in the Avis report. """
-    fill_red = openpyxl.styles.PatternFill(fgColor="FFC0C0", fill_type = "solid")
-    fill_green = openpyxl.styles.PatternFill(fgColor="C0FFC0", fill_type = "solid")
-    fill_yellow = openpyxl.styles.PatternFill(fgColor="FFFFC0", fill_type = "solid")
-    fill_blue = openpyxl.styles.PatternFill(fgColor="8080FF", fill_type = "solid")
 
     # generate different index for the vehicles
-    v_ra = make_index(vehicles, 'RentalAgreementNumber')
-    v_res= make_index(vehicles, 'RentalAgreementReservationNumber', cleanup=True)
-    v_key = make_index(vehicles, 'KeyNumber')
-    v_plate = make_index(vehicles, 'PlateState', 'Plate')
+    v_ra = make_vehicle_index(vehicles, 'RentalAgreementNumber')
+    v_res= make_vehicle_index(vehicles, 'RentalAgreementReservationNumber')
+    v_key = make_vehicle_index(vehicles, 'KeyNumber')
+    v_plate = make_vehicle_index(vehicles, 'PlateState', 'Plate')
 
     #log.debug(f"plate keys: { v_plate.keys() }")
 
@@ -340,10 +527,6 @@ def match_avis_sheet(ws, columns, avis, vehicles):
         key = row['MVA No']
         plate = row['License Plate State Code'] + ' ' + row['License Plate Number']
 
-        # trim the leading zero from key; the Avis Report has 9 char key numbers
-        if key.startswith('0') and len(key) > 1:
-            key = key[1:]
-
         # use DisasterVehicleID as the DTT identity for a vehicle
         ra_id = get_dtt_id(v_ra, ra)
         res_id = get_dtt_id(v_res, res)
@@ -354,27 +537,43 @@ def match_avis_sheet(ws, columns, avis, vehicles):
 
         if ra_id == None and res_id == None and key_id == None and plate_id == None:
             # vehicle doesn't appear in the DTT at all; color it blue
-            mark_cell(ws, fill_blue, spreadsheet_row, columns, 'Rental Agreement No')
-            mark_cell(ws, fill_blue, spreadsheet_row, columns, 'Reservation No')
-            mark_cell(ws, fill_blue, spreadsheet_row, columns, 'MVA No')
-            mark_cell(ws, fill_blue, spreadsheet_row, columns, 'License Plate State Code')
-            mark_cell(ws, fill_blue, spreadsheet_row, columns, 'License Plate Number')
+            fill = FILL_BLUE
+
+            if MISSING_AVIS_ALL in row:
+                fill = FILL_CYAN
+
+            mark_cell(ws, fill, spreadsheet_row, columns, 'Rental Agreement No')
+            mark_cell(ws, fill, spreadsheet_row, columns, 'Reservation No')
+            mark_cell(ws, fill, spreadsheet_row, columns, 'MVA No')
+            mark_cell(ws, fill, spreadsheet_row, columns, 'License Plate State Code')
+            mark_cell(ws, fill, spreadsheet_row, columns, 'License Plate Number')
 
         elif ra_id == res_id and ra_id == key_id and ra_id == plate_id:
             # all columns match: color it green
-            mark_cell(ws, fill_green, spreadsheet_row, columns, 'Rental Agreement No')
-            mark_cell(ws, fill_green, spreadsheet_row, columns, 'Reservation No')
-            mark_cell(ws, fill_green, spreadsheet_row, columns, 'MVA No')
-            mark_cell(ws, fill_green, spreadsheet_row, columns, 'License Plate State Code')
-            mark_cell(ws, fill_green, spreadsheet_row, columns, 'License Plate Number')
+
+            fill = FILL_GREEN
+
+            if MISSING_AVIS_ALL in row:
+                fill = FILL_CYAN
+            mark_cell(ws, fill, spreadsheet_row, columns, 'Rental Agreement No')
+            mark_cell(ws, fill, spreadsheet_row, columns, 'Reservation No')
+            mark_cell(ws, fill, spreadsheet_row, columns, 'MVA No')
+            mark_cell(ws, fill, spreadsheet_row, columns, 'License Plate State Code')
+            mark_cell(ws, fill, spreadsheet_row, columns, 'License Plate Number')
 
         else:
             # else color yellow if value is found; red if value not found
-            mark_cell(ws, fill_red if ra_id is None else fill_yellow, spreadsheet_row, columns, 'Rental Agreement No')
-            mark_cell(ws, fill_red if res_id is None else fill_yellow, spreadsheet_row, columns, 'Reservation No')
-            mark_cell(ws, fill_red if key_id is None else fill_yellow, spreadsheet_row, columns, 'MVA No')
-            mark_cell(ws, fill_red if plate_id is None else fill_yellow, spreadsheet_row, columns, 'License Plate State Code')
-            mark_cell(ws, fill_red if plate_id is None else fill_yellow, spreadsheet_row, columns, 'License Plate Number')
+            mark_cell(ws, FILL_RED if ra_id is None else FILL_YELLOW, spreadsheet_row, columns, 'Rental Agreement No')
+            mark_cell(ws, FILL_RED if res_id is None else FILL_YELLOW, spreadsheet_row, columns, 'Reservation No')
+            mark_cell(ws, FILL_RED if key_id is None else FILL_YELLOW, spreadsheet_row, columns, 'MVA No')
+            mark_cell(ws, FILL_RED if plate_id is None else FILL_YELLOW, spreadsheet_row, columns, 'License Plate State Code')
+            mark_cell(ws, FILL_RED if plate_id is None else FILL_YELLOW, spreadsheet_row, columns, 'License Plate Number')
+
+        if MISSING_AVIS_OPEN in row:
+            mark_cell(ws, FILL_YELLOW, spreadsheet_row, columns, 'Cost Control No')
+        elif MISSING_AVIS_ALL in row:
+            mark_cell(ws, FILL_CYAN, spreadsheet_row, columns, 'Cost Control No')
+
 
 
 
@@ -400,8 +599,18 @@ If all four fields match: the cells will be marked Green.
 
 If a vehicle in the Avis report is not found in the DTT: the cells will be blue.
 
-If all four fields don't match: any field that is not found in the DTT will be red.  Otherwise the fields
-will be yellow.
+If all four fields don't match: any field that is not found in the DTT will be red.
+Otherwise the fields will be yellow.  Red fields are usually typos in the DTT data entry.
+A row of all yellow often means a data entry error where fields from different vehicles were
+entered on the same DTT entry.
+
+Cyan fields are used when a vehicle is in the DTT but not in the Avis report.
+
+The 'Cost Control No' column is a bit different.  This column is used to encode the DR number.
+The program tries to figure out if which DR matches, but it is not perfect.
+
+If there is a vehicle in the DTT for this DR that has a different entry in the Cost Control No
+field: the entry will be yellow.
 
 This file based on the { config.AVIS_FILE } file
 This file generated at { TIMESTAMP }
@@ -409,6 +618,18 @@ This file generated at { TIMESTAMP }
 """
 
     ws = insert_overview(wb, doc_string)
+
+    cell = ws.cell(row=2, column=1, value="Example Green cell")
+    cell.fill = FILL_GREEN
+    cell = ws.cell(row=3, column=1, value="Example Yellow cell")
+    cell.fill = FILL_YELLOW
+    cell = ws.cell(row=4, column=1, value="Example Red cell")
+    cell.fill = FILL_RED
+    cell = ws.cell(row=5, column=1, value="Example Blue cell")
+    cell.fill = FILL_BLUE
+    cell = ws.cell(row=6, column=1, value="Example Cyan cell")
+    cell.fill = FILL_CYAN
+
     return ws
 
 def insert_group_overview(wb, config):
@@ -481,13 +702,13 @@ def read_avis_sheet(config, sheet):
 
     # trying to match patterns like:
     # 98, 098, DR098, DR098-21, DR098-2021, 098-21, etc...
-    dr_regex = re.compile(f"(dr)?0*{ config.DR_NUM }(-(20)?{ config.DR_YEAR })?")
+    dr_regex = re.compile(f"(dr)?\s*0*{ config.DR_NUM }(-(20)?{ config.DR_YEAR })?", flags=re.IGNORECASE)
 
     #avis_dr = list(filter(lambda x: dr_regex.match(x), avis_all))
     f_result = filter(lambda row: dr_regex.match(row[dr_column]), avis_all)
     avis_dr = list(f_result)
     
-    return title_row, avis_columns, avis_dr
+    return title_row, avis_columns, avis_dr, avis_all
 
 
 
