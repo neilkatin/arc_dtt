@@ -35,9 +35,13 @@ FILESTAMP = NOW.strftime("%Y-%m-%d %H-%M-%S %Z")
 # flag field in vehicle structures
 IN_AVIS = '__IN_AVIS__'
 
-# flag fields in avis structures
-MISSING_AVIS_OPEN = '__MISSING_AVIS_OPEN__'
-MISSING_AVIS_ALL = '__MISSING_AVIS_ALL__'
+# flag field in avis object array
+AVIS_SOURCE = '__AVIS_SOURCE__'
+AVIS_SOURCE_OPEN       = 'OPEN'
+AVIS_SOURCE_OPEN_ALL   = 'OPEN_ALL'
+AVIS_SOURCE_CLOSED     = 'CLOSED'
+AVIS_SOURCE_CLOSED_ALL = 'CLOSED_ALL'
+AVIS_SOURCE_MISSING    = 'MISSING'
 
 FILL_RED = openpyxl.styles.PatternFill(fgColor="FFC0C0", fill_type = "solid")
 FILL_GREEN = openpyxl.styles.PatternFill(fgColor="C0FFC0", fill_type = "solid")
@@ -160,11 +164,14 @@ def make_avis(config, account, vehicles):
     output_ws_open = output_wb.create_sheet("Open RA")
 
     # we now have the latest file.  Suck out all the data
-    avis_title, avis_open_columns, avis_open, avis_all = read_avis_sheet(config, workbook.get_worksheet('Open RA'))
-    add_missing_avis_vehicles(vehicles, avis_all, avis_open)
+    avis_open_title, avis_open_columns, avis_open, avis_open_all = read_avis_sheet(config, workbook.get_worksheet('Open RA'))
+    add_missing_avis_vehicles(vehicles, avis_open_all, avis_open, closed=False)
+
+    avis_closed_title, avis_closed_columns, avis_closed, avis_closed_all = read_avis_sheet(config, workbook.get_worksheet('Closed RA'))
+    add_missing_avis_vehicles(vehicles, avis_closed_all, avis_closed, closed=True)
 
     # generate the 'Open RA' sheet
-    output_columns = copy_avis_sheet(output_ws_open, avis_open_columns, avis_title, avis_open)
+    output_columns = copy_avis_sheet(output_ws_open, avis_open_columns, avis_open_title, avis_open)
     match_avis_sheet(output_ws_open, output_columns, avis_open, vehicles)
 
     # now serialize the workbook
@@ -383,6 +390,8 @@ def add_missing_avis_vehicles(vehicles, avis_all, avis_open):
         res_id = get_dtt_id(v_res, res)
         key_id = get_dtt_id(v_key, key)
         plate_id = get_dtt_id(v_plate, plate)
+        
+        row[AVIS_SOURCE] = AVIS_SOURCE_OPEN
 
 
     # get_dtt_id() records which vehicles were looked up.  Find all the ones that weren't found so far, and see if there is a DTT entry for them.
@@ -432,19 +441,21 @@ def add_missing_avis_vehicles(vehicles, avis_all, avis_open):
                 row_index = row[spreadsheet_tools.ROW_INDEX]
                 if row_index not in i_row:
                     # this row isn't in avis_open yet...
-                    row[MISSING_AVIS_OPEN] = True
+                    row[AVIS_SOURCE] = AVIS_SOURCE_OPEN_ALL
                     avis_open.append(row)
                     i_row[row_index] = row
 
         else:
-            # this is an entirely new vehicle that doesn't match anything in avis_all
-            log.debug(f"Adding missing vehicle to ALL { key }")
+            # ZZZ: need to check closed roster before adding missing vehicles...
+            if False:
+                # this is an entirely new vehicle that doesn't match anything in avis_all
+                log.debug(f"Adding missing vehicle to ALL { key }")
 
-            row = make_avis_from_vehicle(record)
-            row[MISSING_AVIS_ALL] = True
-            row[spreadsheet_tools.ROW_INDEX] = len(avis_all) + 1
-            avis_open.append(row)
-            avis_all.append(row)
+                row = make_avis_from_vehicle(record)
+                row[AVIS_SOURCE] = AVIS_SOURCE_MISSING
+                row[spreadsheet_tools.ROW_INDEX] = len(avis_all) + 1
+                avis_open.append(row)
+                avis_all.append(row)
 
 
 
@@ -535,11 +546,16 @@ def match_avis_sheet(ws, columns, avis, vehicles):
 
         #log.debug(f"ra { ra_id } res { res_id } key { key_id } plate { plate_id }; raw { ra } { res } { key } { plate }")
 
+        if AVIS_SOURCE in row:
+            avis_source = row[AVIS_SOURCE]
+        else:
+            avis_source = None
+
         if ra_id == None and res_id == None and key_id == None and plate_id == None:
             # vehicle doesn't appear in the DTT at all; color it blue
             fill = FILL_BLUE
 
-            if MISSING_AVIS_ALL in row:
+            if avis_source == AVIS_SOURCE_OPEN_ALL:
                 fill = FILL_CYAN
 
             mark_cell(ws, fill, spreadsheet_row, columns, 'Rental Agreement No')
@@ -553,8 +569,9 @@ def match_avis_sheet(ws, columns, avis, vehicles):
 
             fill = FILL_GREEN
 
-            if MISSING_AVIS_ALL in row:
-                fill = FILL_CYAN
+            #if avis_source == AVIS_SOURCE_OPEN_ALL:
+            #    fill = FILL_CYAN
+
             mark_cell(ws, fill, spreadsheet_row, columns, 'Rental Agreement No')
             mark_cell(ws, fill, spreadsheet_row, columns, 'Reservation No')
             mark_cell(ws, fill, spreadsheet_row, columns, 'MVA No')
@@ -569,9 +586,9 @@ def match_avis_sheet(ws, columns, avis, vehicles):
             mark_cell(ws, FILL_RED if plate_id is None else FILL_YELLOW, spreadsheet_row, columns, 'License Plate State Code')
             mark_cell(ws, FILL_RED if plate_id is None else FILL_YELLOW, spreadsheet_row, columns, 'License Plate Number')
 
-        if MISSING_AVIS_OPEN in row:
+        if avis_source == AVIS_SOURCE_OPEN_ALL:
             mark_cell(ws, FILL_YELLOW, spreadsheet_row, columns, 'Cost Control No')
-        elif MISSING_AVIS_ALL in row:
+        elif avis_source == AVIS_SOURCE_MISSING or avis_source is None:
             mark_cell(ws, FILL_CYAN, spreadsheet_row, columns, 'Cost Control No')
 
 
