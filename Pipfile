@@ -15,6 +15,7 @@ tzlocal = "*"
 pytz = "*"
 python-dateutil = "*"
 openpyxl = "*"
+o365 = "*"
 
 [requires]
 python_version = "3.8"

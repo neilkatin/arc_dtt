@@ -23,7 +23,9 @@ import config as config_static
 import web_session
 
 import arc_o365
-from O365_local.excel import WorkBook as o365_WorkBook
+#from O365_local.excel import WorkBook as o365_WorkBook
+import O365
+from O365.excel import WorkBook as o365_WorkBook
 
 
 
@@ -62,7 +64,8 @@ def main():
         session = web_session.get_session(config)
 
         # ZZZ: should validate session here, and re-login if it isn't working...
-        get_dr_list(config, session)
+        if 'DR_ID' not in config:
+            get_dr_list(config, session)
 
         log.debug(f"DR_ID { config.DR_ID } DR_NAME { config.DR_NAME }")
 
@@ -167,8 +170,8 @@ def make_avis(config, account, vehicles):
     avis_open_title, avis_open_columns, avis_open, avis_open_all = read_avis_sheet(config, workbook.get_worksheet('Open RA'))
     add_missing_avis_vehicles(vehicles, avis_open_all, avis_open, closed=False)
 
-    avis_closed_title, avis_closed_columns, avis_closed, avis_closed_all = read_avis_sheet(config, workbook.get_worksheet('Closed RA'))
-    add_missing_avis_vehicles(vehicles, avis_closed_all, avis_closed, closed=True)
+    #avis_closed_title, avis_closed_columns, avis_closed, avis_closed_all = read_avis_sheet(config, workbook.get_worksheet('Closed RA'))
+    #add_missing_avis_vehicles(vehicles, avis_closed_all, avis_closed, closed=True)
 
     # generate the 'Open RA' sheet
     output_columns = copy_avis_sheet(output_ws_open, avis_open_columns, avis_open_title, avis_open)
@@ -359,7 +362,7 @@ def make_vehicle_index(vehicles, first_field, second_field=None, reservation=Fal
 
     return result
 
-def add_missing_avis_vehicles(vehicles, avis_all, avis_open):
+def add_missing_avis_vehicles(vehicles, avis_all, avis_open, closed):
     """ find Avis vehicles that are not in the Avis report """
 
     # generate some indexes to look up values faster
@@ -385,6 +388,12 @@ def add_missing_avis_vehicles(vehicles, avis_all, avis_open):
         key = row['MVA No']
         plate = row['License Plate State Code'] + ' ' + row['License Plate Number']
 
+        log.debug(f"row in avis_open: examinging  ra { ra } res { res } key { key } plate { plate }")
+
+        if key == '094711746':
+            log.debug(f"step 1: saw key { key } plate { plate }")
+
+
         # use DisasterVehicleID as the DTT identity for a vehicle
         ra_id = get_dtt_id(v_ra, ra)
         res_id = get_dtt_id(v_res, res)
@@ -394,7 +403,7 @@ def add_missing_avis_vehicles(vehicles, avis_all, avis_open):
         row[AVIS_SOURCE] = AVIS_SOURCE_OPEN
 
 
-    # get_dtt_id() records which vehicles were looked up.  Find all the ones that weren't found so far, and see if there is a DTT entry for them.
+    # get_dtt_id() records which vehicles were looked up.  Add vehicles in DTT that are not in AVIS
     for record in vehicles:
         # vehicle is not active
         if record['Status'] != 'Active':
@@ -456,6 +465,7 @@ def add_missing_avis_vehicles(vehicles, avis_all, avis_open):
                 row[spreadsheet_tools.ROW_INDEX] = len(avis_all) + 1
                 avis_open.append(row)
                 avis_all.append(row)
+
 
 
 
@@ -724,6 +734,8 @@ def read_avis_sheet(config, sheet):
     #avis_dr = list(filter(lambda x: dr_regex.match(x), avis_all))
     f_result = filter(lambda row: dr_regex.match(row[dr_column]), avis_all)
     avis_dr = list(f_result)
+
+    log.debug(f"found { len(avis_dr) } vehicles associated with the DR")
     
     return title_row, avis_columns, avis_dr, avis_all
 
@@ -761,6 +773,9 @@ def get_json(config, session, api_type):
 
     r = session.get(url)
     r.raise_for_status()
+
+    #log.debug(f"response headers { r.headers }")
+    #log.debug(f"response { r.content }")
 
     data = r.json()
 
@@ -837,13 +852,20 @@ def make_group_report(config, vehicles):
 
 
 gap_to_group_re = re.compile('^([A-Z]+)')
-def gap_to_group(gap):
+motor_pool_re = re.compile('^.*\(([^\)]*)\)$')
+def gap_to_group(gap, driver_name):
     """ turn a Gap (Group/Activity/Position) name into just the Group portion """
 
     match = gap_to_group_re.match(gap)
 
     if match is None:
-        return None
+        pool = motor_pool_re.match(driver_name)
+        if pool is None:
+            return None
+
+        pool_name = pool.group(1)
+        log.debug(f"Found a motor pool '{ pool_name }'")
+        return pool_name
 
     return match.group(1)
 
@@ -858,10 +880,10 @@ def get_vehicle_gap_groups(vehicles):
 
     for vehicle in vehicles:
         gap = vehicle['Vehicle']['GAP']
-        group = gap_to_group(gap)
+        group = gap_to_group(gap,  vehicle['Vehicle']['CurrentDriverName'])
 
         if group is None:
-            log.info("Could not find the Group in gap '{ gap }' vehicle { vehicle }")
+            log.info(f"Count not find Group in gap '{ gap }' vehicle { vehicle }")
         else:
             # remember that we saw this group; don't worry about duplicates
             groups[group] = True
@@ -874,7 +896,7 @@ def filter_by_gap_group(group, vehicles):
     """ only return the vehicles whos GAP starts with the group """
 
     # we cheat a bit because we 'know' no GAP Groups are a prefix of another
-    return filter(lambda x: x['Vehicle']['GAP'].startswith(group), vehicles)
+    return filter(lambda x: gap_to_group(x['Vehicle']['GAP'], x['Vehicle']['CurrentDriverName']) == group, vehicles)
 
 
 def add_gap_sheet(wb, sheet_name, vehicles):
@@ -925,7 +947,7 @@ def add_gap_sheet(wb, sheet_name, vehicles):
 
         row_vehicle = vehicle['Vehicle']
         gap = row_vehicle['GAP']
-        group = gap_to_group(gap)
+        group = gap_to_group(gap, row_vehicle['CurrentDriverName'])
 
         # leave a blank row when the group changes
         if group != previous_group:
