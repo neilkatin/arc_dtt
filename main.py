@@ -388,11 +388,6 @@ def add_missing_avis_vehicles(vehicles, avis_all, avis_open, closed):
         key = row['MVA No']
         plate = row['License Plate State Code'] + ' ' + row['License Plate Number']
 
-        log.debug(f"row in avis_open: examinging  ra { ra } res { res } key { key } plate { plate }")
-
-        if key == '094711746':
-            log.debug(f"step 1: saw key { key } plate { plate }")
-
 
         # use DisasterVehicleID as the DTT identity for a vehicle
         ra_id = get_dtt_id(v_ra, ra)
@@ -834,7 +829,7 @@ def make_group_report(config, vehicles):
     insert_group_overview(wb, config)
 
     # sort the vehicles by GAP
-    vehicles = sorted(vehicles, key=lambda x: x['Vehicle']['GAP'])
+    vehicles = sorted(vehicles, key=lambda x: vehicle_to_gap(x['Vehicle']))
 
     # add the master sheet
     add_gap_sheet(wb, 'Master', vehicles)
@@ -852,22 +847,52 @@ def make_group_report(config, vehicles):
 
 
 gap_to_group_re = re.compile('^([A-Z]+)')
-motor_pool_re = re.compile('^.*\(([^\)]*)\)$')
-def gap_to_group(gap, driver_name):
+motor_pool_re = re.compile('^Motor Pool \(([^\)]*)\)$')
+def vehicle_to_group(vehicle):
     """ turn a Gap (Group/Activity/Position) name into just the Group portion """
 
-    match = gap_to_group_re.match(gap)
+    gap = vehicle['GAP']
+    driver = vehicle['CurrentDriverName']
 
-    if match is None:
-        pool = motor_pool_re.match(driver_name)
-        if pool is None:
-            return None
+    pool = vehicle_in_pool(vehicle)
+    if pool is not None:
+        return pool
 
+    group = gap_to_group_re.match(gap)
+    if group is not None:
+        group_name = group.group(1)
+        #log.debug(f"Found a group '{ group_name }'")
+        return group_name
+
+    return None
+
+def vehicle_to_gap(vehicle):
+    """ returns the motor pool name if its a pool, otherwise None """
+
+    pool = vehicle_in_pool(vehicle)
+    if pool is not None:
+        return pool
+
+    gap = vehicle['GAP']
+    return gap
+
+
+
+def vehicle_in_pool(vehicle):
+    """ return pool name if vehicle is in a pool, otherwise None """
+    driver = vehicle['CurrentDriverName']
+
+    if driver is None:
+        return None
+
+    pool = motor_pool_re.match(driver)
+
+    if pool is not None:
         pool_name = pool.group(1)
-        log.debug(f"Found a motor pool '{ pool_name }'")
+        #log.debug(f"Found a pool '{ pool_name }'")
         return pool_name
 
-    return match.group(1)
+    return None
 
 
 
@@ -880,7 +905,7 @@ def get_vehicle_gap_groups(vehicles):
 
     for vehicle in vehicles:
         gap = vehicle['Vehicle']['GAP']
-        group = gap_to_group(gap,  vehicle['Vehicle']['CurrentDriverName'])
+        group = vehicle_to_group(vehicle['Vehicle'])
 
         if group is None:
             log.info(f"Count not find Group in gap '{ gap }' vehicle { vehicle }")
@@ -895,8 +920,7 @@ def get_vehicle_gap_groups(vehicles):
 def filter_by_gap_group(group, vehicles):
     """ only return the vehicles whos GAP starts with the group """
 
-    # we cheat a bit because we 'know' no GAP Groups are a prefix of another
-    return filter(lambda x: gap_to_group(x['Vehicle']['GAP'], x['Vehicle']['CurrentDriverName']) == group, vehicles)
+    return filter(lambda x: vehicle_to_group(x['Vehicle']) == group, vehicles)
 
 
 def add_gap_sheet(wb, sheet_name, vehicles):
@@ -905,7 +929,7 @@ def add_gap_sheet(wb, sheet_name, vehicles):
     ws = wb.create_sheet(sheet_name)
 
     column_defs = {
-            'GAP':          { 'width': 15, 'key': lambda x: x['GAP'], },
+            'GAP':          { 'width': 15, 'key': lambda x: vehicle_to_gap(x), },
             'Driver':       { 'width': 30, 'key': lambda x: x['CurrentDriverName'], },
             'Key Number':   { 'width': 12, 'key': lambda x: x['KeyNumber'], },
             'Vendor':       { 'width': 20, 'key': lambda x: x['Vendor'], },
@@ -946,8 +970,7 @@ def add_gap_sheet(wb, sheet_name, vehicles):
         col = 0
 
         row_vehicle = vehicle['Vehicle']
-        gap = row_vehicle['GAP']
-        group = gap_to_group(gap, row_vehicle['CurrentDriverName'])
+        group = vehicle_to_group(row_vehicle)
 
         # leave a blank row when the group changes
         if group != previous_group:

@@ -89,3 +89,23 @@ From api/Disaster/&lt;DR ID&gt;/Vehicles: JSON array
     }
   },
 ```
+
+From api/Disaster/&lt;DR ID&gt;/agencies: JSON array
+
+```json
+[
+  {
+    "AgencyID": 336,
+    "Name": "AVIS Sacramento CA APO",
+    "Address": "6520 McNair Circle",
+    "City": "Sacramento",
+    "State": "CA",
+    "StateText": null,
+    "Zip": "95837",
+    "Telephone": "916-922-5601",
+    "DisasterID": 0,
+    "UpdatedTimestamp": "2020-10-26T23:18:16.2179331-04:00",
+    "UpdatedBy": "EMAIL_ADDRESS"
+  },
+]
+```
