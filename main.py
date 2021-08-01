@@ -549,6 +549,63 @@ def make_agency_key(agency):
     #log.debug(f"key { key }")
     return key
 
+dtt_to_avis_make_dict = {
+        'Honda': 'HOND',
+        'Toyota': 'TOYO',
+        'Kia': 'KIA ',
+        'Hyundai': 'HYUN',
+        'Jeep': 'JEEP',
+        'Ford': 'FORD',
+        'Mitsubishi': 'MITS',
+        'Nissan': 'NISS',
+        'Mazda': 'MAZD',
+        }
+dtt_to_avis_model_dict = {
+        'Corolla': 'CRLA',
+        'Civic': 'CIVI',
+        'Frontier': 'FRO4',
+        'Outlander': 'OU54',
+        'Forte': 'FORT',
+        'Sorento': 'SO7F',
+        'Compass': 'CMPS',
+        'Altima': 'ALTI',
+        'Escort': 'ECOA',
+        'Prius': 'PRIH',
+        'Elantra': 'ELAN',
+        'CX-5': 'CX5A',
+        'Camry': 'CAMR',
+        'Explorer': 'EXL4',
+        'Escape': 'ESCA',
+        }
+dtt_to_avis_color_dict = {
+        'Silver': 'SIL',
+        'White': 'WHI',
+        'Blue': 'BLU',
+        'Black': 'BLK',
+        'Gray': 'GRY',
+        'Red': 'RED',
+        }
+
+def dtt_to_avis_make(make_tuple):
+    """ convert DTT make/model/color to avis """
+
+    make = None
+    model  = None
+    color = None
+
+    if make_tuple[0] in dtt_to_avis_make_dict:
+        make = dtt_to_avis_make_dict[make_tuple[0]]
+        
+    if make_tuple[1] in dtt_to_avis_model_dict:
+        model = dtt_to_avis_model_dict[make_tuple[1]]
+    else:
+        log.debug(f"could not find model '{ make_tuple[1] }'")
+
+    if make_tuple[2] in dtt_to_avis_color_dict:
+        color = dtt_to_avis_color_dict[make_tuple[2]]
+
+
+    return (make, model, color)
 
 def match_avis_sheet(ws, columns, avis, vehicles, agencies):
     """ match entries from the DTT to entries in the Avis report. """
@@ -564,6 +621,8 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
     #log.debug(f"plate keys: { v_plate.keys() }")
 
     multispace_re = re.compile('\s+')
+
+    #log.debug(f"make translation dict: { dtt_to_avis_model_dict }")
 
     spreadsheet_row = 1
     for row in avis:
@@ -643,7 +702,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
                 mark_cell(ws, fill, spreadsheet_row, columns, 'Address Line 3')
 
 
-            # check pickup date
+            # check pickup and expected dropoff date
             for (dtt_col, avis_col) in (('RentalAgreementPickupDate', 'CO Date'), ('DueDate', 'Exp CI Date')):
                 dtt_date = datetime.datetime.fromisoformat(vehicle[dtt_col]).date()
                 col_num = columns[avis_col]
@@ -660,6 +719,31 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
 
                 cell.fill = fill
                 #mark_cell(ws, fill, spreadsheet_row, columns, 'CO Date')
+
+            # check make/model/color
+            avis_make_cols = ['Make', 'Model', 'Ext Color Code']
+            avis_veh_make = list(row[col_name] for col_name in avis_make_cols)
+            #avis_veh_make = (row['Make'], row['Model'], row['Ext Color Code'])
+            dtt_veh_make_orig = (vehicle['Make'].strip(), vehicle['Model'].strip(), vehicle['Color'].strip())
+            dtt_veh_make = dtt_to_avis_make(dtt_veh_make_orig)
+
+            log.debug(f"avis make {  avis_veh_make } dtt { dtt_veh_make } orig { dtt_veh_make_orig }")
+
+            for (i, col_name) in enumerate(avis_make_cols):
+                v = dtt_veh_make[i]
+                if v is None:
+                    # DTT string not found in our mapping table; ignore
+                    continue
+
+                comment = None
+                if v == avis_veh_make[i]:
+                    fill = FILL_GREEN
+                else:
+                    fill = FILL_YELLOW
+                    comment = Comment(f"DTT value is { dtt_veh_make_orig[i] } -> { v }", COMMENT_AUTHOR)
+
+                mark_cell(ws, fill, spreadsheet_row, columns, col_name, comment=comment)
+            
 
         else:
             # else color yellow if value is found; red if value not found
