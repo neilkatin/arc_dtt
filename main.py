@@ -74,9 +74,9 @@ def main():
         log.debug(f"DR_ID { config.DR_ID } DR_NAME { config.DR_NAME }")
 
         # get people and vehicles from the DTT
-        vehicles = get_vehicles(config, session)
-        people = get_people(config, session)
-        agencies = get_agencies(config, session)
+        vehicles = get_vehicles(config, args, session)
+        people = get_people(config, args, session)
+        agencies = get_agencies(config, args, session)
 
     # fetch the avis report
     account = init_o365(config)
@@ -727,7 +727,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
             dtt_veh_make_orig = (vehicle['Make'].strip(), vehicle['Model'].strip(), vehicle['Color'].strip())
             dtt_veh_make = dtt_to_avis_make(dtt_veh_make_orig)
 
-            log.debug(f"avis make {  avis_veh_make } dtt { dtt_veh_make } orig { dtt_veh_make_orig }")
+            #log.debug(f"avis make {  avis_veh_make } dtt { dtt_veh_make } orig { dtt_veh_make_orig }")
 
             for (i, col_name) in enumerate(avis_make_cols):
                 v = dtt_veh_make[i]
@@ -912,26 +912,26 @@ def init_o365(config):
 
     
 
-def get_people(config, session):
+def get_people(config, args, session):
     """ Retrieve the people list from the DTT (as a json list) """
 
-    data = get_json(config, session, 'People/Details')
+    data = get_json(config, args, session, 'People/Details')
     return data
 
 
-def get_vehicles(config, session):
+def get_vehicles(config, args, session):
     """ Retrieve the vehicle list from the DTT (as a json list) """
 
-    data = get_json(config, session, 'Vehicles')
+    data = get_json(config, args, session, 'Vehicles')
     return data
 
-def get_agencies(config, session):
+def get_agencies(config, args, session):
     """ retrieve the current rental agencies for this DR
 
         return a dict keyed by the AgencyID
     """
 
-    data = get_json(config, session, 'Agencies', prefix='api/Disasters/')
+    data = get_json(config, args, session, 'Agencies', prefix='api/Disasters/')
 
     # construct a dict keyed by AgencyID from the data array
     d = dict( (h['AgencyID'], h) for h in data )
@@ -944,19 +944,37 @@ def get_agencies(config, session):
     #log.debug(f"got agencies: { d }")
     return d
 
-def get_json(config, session, api_type, prefix='api/Disaster/'):
 
-    url = config.DTT_URL + f"{ prefix }{ config.DR_ID }/" + api_type
 
-    r = session.get(url)
-    r.raise_for_status()
+def get_json(config, args, session, api_type, prefix='api/Disaster/'):
 
-    #log.debug(f"response headers { r.headers }")
-    #log.debug(f"response { r.content }")
+    file_name = f"cached_{ re.sub(r'/.*', '', api_type) }.json"
 
-    data = r.json()
+    data = None
+    if args.cached_input:
+        log.debug(f"reading cached input from { file_name }")
+        with open(file_name, "rb") as f:
+            buffer = f.read()
 
-    #log.debug(f"r.status { r.status_code } r.reason { r.reason } r.url { r.url } r.content_type { r.headers['content-type'] } data rows { len(data) }")
+        data = json.loads(buffer)
+
+    else:
+
+        url = config.DTT_URL + f"{ prefix }{ config.DR_ID }/" + api_type
+
+        r = session.get(url)
+        r.raise_for_status()
+
+        #log.debug(f"response headers { r.headers }")
+        #log.debug(f"response { r.content }")
+
+        if args.save_input:
+            log.debug(f"saving to { file_name }")
+            with open(file_name, "wb") as f:
+                f.write(r.content)
+
+        data = r.json()
+        #log.debug(f"r.status { r.status_code } r.reason { r.reason } r.url { r.url } r.content_type { r.headers['content-type'] } data rows { len(data) }")
 
     #log.debug(f"json { data }")
     #log.debug(f"Returned data\n{ json.dumps(data, indent=2, sort_keys=True) }")
@@ -1190,9 +1208,9 @@ def parse_args():
     parser.add_argument("--ignore-avis", help="Don't generate an Avis match report", action="store_true")
     parser.add_argument("--ignore-group", help="Don't generate a Group Vehicle report", action="store_true")
 
-    #group = parser.add_mutually_exclusive_group(required=True)
-    #group.add_argument("-p", "--prod", "--production", help="use production settings", action="store_true")
-    #group.add_argument("-d", "--dev", "--development", help="use development settings", action="store_true")
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument("--save-input", help="Save a copy of server inputs", action="store_true")
+    group.add_argument("--cached-input", help="Use cached server input", action="store_true")
 
     args = parser.parse_args()
     return args
