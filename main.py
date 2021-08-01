@@ -15,6 +15,7 @@ import openpyxl.utils
 import openpyxl.styles
 import openpyxl.styles.colors
 import openpyxl.writer.excel
+from openpyxl.comments import Comment
 
 import neil_tools
 from neil_tools import spreadsheet_tools
@@ -51,6 +52,9 @@ FILL_YELLOW = openpyxl.styles.PatternFill(fgColor="FFFFC0", fill_type = "solid")
 FILL_BLUE = openpyxl.styles.PatternFill(fgColor="5BB1CD", fill_type = "solid")
 FILL_CYAN = openpyxl.styles.PatternFill(fgColor="A0FFFF", fill_type = "solid")
 
+
+COMMENT_AUTHOR = "Avis Report Reconciler Program"
+
 def main():
     args = parse_args()
     if args.debug:
@@ -72,6 +76,7 @@ def main():
         # get people and vehicles from the DTT
         vehicles = get_vehicles(config, session)
         people = get_people(config, session)
+        agencies = get_agencies(config, session)
 
     # fetch the avis report
     account = init_o365(config)
@@ -79,7 +84,7 @@ def main():
     # avis report
     if not args.ignore_avis:
         # fetch the avis spreadsheet
-        output_bytes = make_avis(config, account, vehicles)
+        output_bytes = make_avis(config, account, vehicles, agencies)
 
         if args.store:
             item_name = f"DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR } Avis Report { FILESTAMP }.xlsx"
@@ -155,7 +160,7 @@ def fetch_avis(config, account):
 
     return workbook
 
-def make_avis(config, account, vehicles):
+def make_avis(config, account, vehicles, agencies):
     """ fetch the latest avis vehicle report from sharepoint """
 
     workbook = fetch_avis(config, account)
@@ -175,7 +180,7 @@ def make_avis(config, account, vehicles):
 
     # generate the 'Open RA' sheet
     output_columns = copy_avis_sheet(output_ws_open, avis_open_columns, avis_open_title, avis_open)
-    match_avis_sheet(output_ws_open, output_columns, avis_open, vehicles)
+    match_avis_sheet(output_ws_open, output_columns, avis_open, vehicles, agencies)
 
     # now serialize the workbook
     bufferview = workbook_to_buffer(output_wb)
@@ -380,6 +385,7 @@ def add_missing_avis_vehicles(vehicles, avis_all, avis_open, closed):
     v_key = make_vehicle_index(vehicles, 'KeyNumber')
     v_plate = make_vehicle_index(vehicles, 'PlateState', 'Plate')
 
+
     # walk through the avis_open sheet and record all the matches
     for row in avis_open:
 
@@ -387,6 +393,7 @@ def add_missing_avis_vehicles(vehicles, avis_all, avis_open, closed):
         res = row['Reservation No']
         key = row['MVA No']
         plate = row['License Plate State Code'] + ' ' + row['License Plate Number']
+        addr_line_3 = row['Address Line 3']
 
 
         # use DisasterVehicleID as the DTT identity for a vehicle
@@ -514,7 +521,7 @@ def get_dtt_id(vehicle_dict, index):
 
 
 
-def mark_cell(ws, fill, row_num, col_map, col_name):
+def mark_cell(ws, fill, row_num, col_map, col_name, comment=None):
     """ apply a fill to a particular cell """
 
     col_num = col_map[col_name]
@@ -522,8 +529,28 @@ def mark_cell(ws, fill, row_num, col_map, col_name):
     cell = ws.cell(row=row_num, column=col_num)
     cell.fill = fill
 
+    if comment is not  None:
+        cell.comment = comment
 
-def match_avis_sheet(ws, columns, avis, vehicles):
+
+
+def make_agency_key(agency):
+    """ generate a (hopefully) unique key for the DTT agencies.  Combine Address, City, State, Zip.
+
+        Name seems the obvious choice, but DTT names don't match AVIS names at all
+    """
+
+    address = agency['Address']
+    city = agency['City']
+    state = agency['State']
+    zipcode = agency['Zip']
+
+    key = f"{ address }/{ city } { state }{ zipcode }".upper()
+    #log.debug(f"key { key }")
+    return key
+
+
+def match_avis_sheet(ws, columns, avis, vehicles, agencies):
     """ match entries from the DTT to entries in the Avis report. """
 
     # generate different index for the vehicles
@@ -532,7 +559,11 @@ def match_avis_sheet(ws, columns, avis, vehicles):
     v_key = make_vehicle_index(vehicles, 'KeyNumber')
     v_plate = make_vehicle_index(vehicles, 'PlateState', 'Plate')
 
+    vid_dict = dict( (v['DisasterVehicleID'], v) for v in vehicles)
+
     #log.debug(f"plate keys: { v_plate.keys() }")
+
+    multispace_re = re.compile('\s+')
 
     spreadsheet_row = 1
     for row in avis:
@@ -542,6 +573,9 @@ def match_avis_sheet(ws, columns, avis, vehicles):
         res = row['Reservation No']
         key = row['MVA No']
         plate = row['License Plate State Code'] + ' ' + row['License Plate Number']
+
+        addr_line = f"{ row['Address Line 1'] }/{ row['Address Line 3'] }"
+        addr_line = multispace_re.sub(' ', addr_line)
 
         # use DisasterVehicleID as the DTT identity for a vehicle
         ra_id = get_dtt_id(v_ra, ra)
@@ -583,6 +617,50 @@ def match_avis_sheet(ws, columns, avis, vehicles):
             mark_cell(ws, fill, spreadsheet_row, columns, 'License Plate State Code')
             mark_cell(ws, fill, spreadsheet_row, columns, 'License Plate Number')
 
+            # since all four 'unique' fields match: check additional fields
+            vrow = vid_dict[ra_id]
+            vehicle = vrow['Vehicle']
+
+            # check 'agency' (aka pickup location)
+            agency_key = vehicle['PickupAgencyId']
+            if agency_key not in agencies:
+                log.debug(f"could not find agency key '{ agency_key }' in v_agencies ")
+            else:
+                agency = agencies[agency_key]
+                agency_string = agency['AvisAgencyString']
+                comment = None
+
+                if agency_string == addr_line:
+                    fill = FILL_GREEN
+                else:
+                    fill = FILL_YELLOW
+                    #log.debug(f"no agency match '{ addr_line }' / { agency_key }")
+
+                    comment = Comment(f"DTT location is { agency['Name'] }", COMMENT_AUTHOR)
+
+                mark_cell(ws, fill, spreadsheet_row, columns, 'Rental Loc Desc', comment=comment)
+                mark_cell(ws, fill, spreadsheet_row, columns, 'Address Line 1')
+                mark_cell(ws, fill, spreadsheet_row, columns, 'Address Line 3')
+
+
+            # check pickup date
+            for (dtt_col, avis_col) in (('RentalAgreementPickupDate', 'CO Date'), ('DueDate', 'Exp CI Date')):
+                dtt_date = datetime.datetime.fromisoformat(vehicle[dtt_col]).date()
+                col_num = columns[avis_col]
+                cell = ws.cell(row=spreadsheet_row, column=col_num)
+                avis_pickup_dt = cell.value
+                avis_pickup_date = avis_pickup_dt.date()
+
+                if dtt_date == avis_pickup_date:
+                    fill = FILL_GREEN
+                else:
+                    #log.debug(f"pickup date: key { key } dtt { dtt_date }/{vehicle[dtt_col]} avis { avis_pickup_date }/{ avis_pickup_dt }")
+                    fill = FILL_YELLOW
+                    cell.comment = Comment(f"DTT date is { dtt_date }", COMMENT_AUTHOR)
+
+                cell.fill = fill
+                #mark_cell(ws, fill, spreadsheet_row, columns, 'CO Date')
+
         else:
             # else color yellow if value is found; red if value not found
             mark_cell(ws, FILL_RED if ra_id is None else FILL_YELLOW, spreadsheet_row, columns, 'Rental Agreement No')
@@ -595,6 +673,8 @@ def match_avis_sheet(ws, columns, avis, vehicles):
             mark_cell(ws, FILL_YELLOW, spreadsheet_row, columns, 'Cost Control No')
         elif avis_source == AVIS_SOURCE_MISSING or avis_source is None:
             mark_cell(ws, FILL_CYAN, spreadsheet_row, columns, 'Cost Control No')
+
+
 
 
 
@@ -761,10 +841,28 @@ def get_vehicles(config, session):
     data = get_json(config, session, 'Vehicles')
     return data
 
+def get_agencies(config, session):
+    """ retrieve the current rental agencies for this DR
 
-def get_json(config, session, api_type):
+        return a dict keyed by the AgencyID
+    """
 
-    url = config.DTT_URL + f"api/Disaster/{ config.DR_ID }/" + api_type
+    data = get_json(config, session, 'Agencies', prefix='api/Disasters/')
+
+    # construct a dict keyed by AgencyID from the data array
+    d = dict( (h['AgencyID'], h) for h in data )
+
+    for h in data:
+        h['AvisAgencyString'] = make_agency_key(h)
+
+
+
+    #log.debug(f"got agencies: { d }")
+    return d
+
+def get_json(config, session, api_type, prefix='api/Disaster/'):
+
+    url = config.DTT_URL + f"{ prefix }{ config.DR_ID }/" + api_type
 
     r = session.get(url)
     r.raise_for_status()
@@ -774,7 +872,7 @@ def get_json(config, session, api_type):
 
     data = r.json()
 
-    log.debug(f"r.status { r.status_code } r.reason { r.reason } r.url { r.url } r.content_type { r.headers['content-type'] } data rows { len(data) }")
+    #log.debug(f"r.status { r.status_code } r.reason { r.reason } r.url { r.url } r.content_type { r.headers['content-type'] } data rows { len(data) }")
 
     #log.debug(f"json { data }")
     #log.debug(f"Returned data\n{ json.dumps(data, indent=2, sort_keys=True) }")
