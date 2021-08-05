@@ -52,8 +52,9 @@ FILL_YELLOW = openpyxl.styles.PatternFill(fgColor="FFFFC0", fill_type = "solid")
 FILL_BLUE = openpyxl.styles.PatternFill(fgColor="5BB1CD", fill_type = "solid")
 FILL_CYAN = openpyxl.styles.PatternFill(fgColor="A0FFFF", fill_type = "solid")
 
-
 COMMENT_AUTHOR = "Avis Report Reconciler Program"
+
+NO_GAP_GROUP = 'ZZZ-No-GAP'
 
 def main():
     args = parse_args()
@@ -273,17 +274,18 @@ def copy_avis_sheet(ws, columns, title, rows):
             # process date/time column pairs
             if time_key:
 
-                dt = spreadsheet_tools.excel_to_dt(value)
-
-                time_string = row_data[time_key]
-                time_match = time_regex.match(time_string)
-                if time_match:
-                    interval = datetime.timedelta(hours=int(time_match.group(1)), minutes=int(time_match.group(2)), seconds=int(time_match.group(3)))
-                    dt += interval
+                if isinstance(value, datetime.datetime):
+                    dt = value
                 else:
-                    log.debug(f"copy_avis_sheet: row { row } time { time_key } didn't parse: '{ time_string }'")
+                    dt = spreadsheet_tools.excel_to_dt(value)
 
-
+                    time_string = row_data[time_key]
+                    time_match = time_regex.match(time_string)
+                    if time_match:
+                        interval = datetime.timedelta(hours=int(time_match.group(1)), minutes=int(time_match.group(2)), seconds=int(time_match.group(3)))
+                        dt += interval
+                    else:
+                        log.debug(f"copy_avis_sheet: row { row } time { time_key } didn't parse: '{ time_string }'")
 
                 #log.debug(f"adding row { row } column { col } title { key } value { dt } time_string '{ time_string }'")
                 cell = ws.cell(row=row, column=col, value=dt)
@@ -385,6 +387,8 @@ def add_missing_avis_vehicles(vehicles, avis_all, avis_open, closed):
     v_key = make_vehicle_index(vehicles, 'KeyNumber')
     v_plate = make_vehicle_index(vehicles, 'PlateState', 'Plate')
 
+    missing = []
+
 
     # walk through the avis_open sheet and record all the matches
     for row in avis_open:
@@ -458,17 +462,19 @@ def add_missing_avis_vehicles(vehicles, avis_all, avis_open, closed):
 
         else:
             # ZZZ: need to check closed roster before adding missing vehicles...
-            if False:
+            if True:
                 # this is an entirely new vehicle that doesn't match anything in avis_all
                 log.debug(f"Adding missing vehicle to ALL { key }")
 
                 row = make_avis_from_vehicle(record)
                 row[AVIS_SOURCE] = AVIS_SOURCE_MISSING
                 row[spreadsheet_tools.ROW_INDEX] = len(avis_all) + 1
-                avis_open.append(row)
-                avis_all.append(row)
+                missing.append(row)
 
 
+    # add the missing rows to the end
+    avis_open.extend(missing)
+    avis_all.extend(missing)
 
 
 def make_avis_from_vehicle(record):
@@ -496,13 +502,18 @@ def make_avis_from_vehicle(record):
             'Reservation No':           'RentalAgreementReservationNumber',
             'Rental Agreement No':      'RentalAgreementNumber',
             'Full Name':                'RentalAgreementPerson',
+            'Rental Loc Desc':          'PickupAgencyName',
             }
 
     avis['Cost Control No'] = 'MISSING'
     for f_avis, f_vehicle in fields.items():
         avis[f_avis] = get_field(f_vehicle)
 
-    log.debug(f"new avis record: { avis }")
+    # strip off the timezone; openpyxl can't write it
+    pickupDate = re.sub(r'-\d\d:\d\d$', '', get_field('RentalAgreementPickupDate'))
+    avis['CO Date'] = datetime.datetime.fromisoformat(pickupDate)
+
+    #log.debug(f"new avis record: { avis }")
     return avis
 
 
@@ -527,7 +538,9 @@ def mark_cell(ws, fill, row_num, col_map, col_name, comment=None):
     col_num = col_map[col_name]
 
     cell = ws.cell(row=row_num, column=col_num)
-    cell.fill = fill
+
+    if fill is not None:
+        cell.fill = fill
 
     if comment is not  None:
         cell.comment = comment
@@ -559,12 +572,13 @@ dtt_to_avis_make_dict = {
         'Mitsubishi': 'MITS',
         'Nissan': 'NISS',
         'Mazda': 'MAZD',
+        'Subaru': 'SUBA',
         }
 dtt_to_avis_model_dict = {
         'Corolla': 'CRLA',
         'Civic': 'CIVI',
         'Frontier': 'FRO4',
-        'Outlander': 'OU54',
+        'Outlander': 'OUTL',
         'Forte': 'FORT',
         'Sorento': 'SO7F',
         'Compass': 'CMPS',
@@ -576,6 +590,10 @@ dtt_to_avis_model_dict = {
         'Camry': 'CAMR',
         'Explorer': 'EXL4',
         'Escape': 'ESCA',
+        'HR-V': 'HRVA',
+        'RAV 4': 'RAV4',
+        'Sportage': 'SPO2',
+        'Outback': 'OUTB',
         }
 dtt_to_avis_color_dict = {
         'Silver': 'SIL',
@@ -632,9 +650,16 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
         res = row['Reservation No']
         key = row['MVA No']
         plate = row['License Plate State Code'] + ' ' + row['License Plate Number']
+        cost_control = row['Cost Control No']
 
-        addr_line = f"{ row['Address Line 1'] }/{ row['Address Line 3'] }"
-        addr_line = multispace_re.sub(' ', addr_line)
+        if cost_control == 'MISSING':
+            # this is a synthetic row created from the DTT, not AVIS; don't bother matching
+            continue
+
+        addr_line = ''
+        if 'Address Line 1' in row and 'Address Line 3' in row:
+            addr_line = f"{ row['Address Line 1'] }/{ row['Address Line 3'] }"
+            addr_line = multispace_re.sub(' ', addr_line)
 
         # use DisasterVehicleID as the DTT identity for a vehicle
         ra_id = get_dtt_id(v_ra, ra)
@@ -707,18 +732,21 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
                 dtt_date = datetime.datetime.fromisoformat(vehicle[dtt_col]).date()
                 col_num = columns[avis_col]
                 cell = ws.cell(row=spreadsheet_row, column=col_num)
+
                 avis_pickup_dt = cell.value
-                avis_pickup_date = avis_pickup_dt.date()
 
-                if dtt_date == avis_pickup_date:
-                    fill = FILL_GREEN
-                else:
-                    #log.debug(f"pickup date: key { key } dtt { dtt_date }/{vehicle[dtt_col]} avis { avis_pickup_date }/{ avis_pickup_dt }")
-                    fill = FILL_YELLOW
-                    cell.comment = Comment(f"DTT date is { dtt_date }", COMMENT_AUTHOR)
+                if avis_pickup_dt != None:
 
-                cell.fill = fill
-                #mark_cell(ws, fill, spreadsheet_row, columns, 'CO Date')
+                    avis_pickup_date = avis_pickup_dt.date()
+
+                    if dtt_date == avis_pickup_date:
+                        fill = FILL_GREEN
+                    else:
+                        #log.debug(f"pickup date: key { key } dtt { dtt_date }/{vehicle[dtt_col]} avis { avis_pickup_date }/{ avis_pickup_dt }")
+                        fill = FILL_YELLOW
+                        cell.comment = Comment(f"DTT date is { dtt_date }", COMMENT_AUTHOR)
+
+                    cell.fill = fill
 
             # check make/model/color
             avis_make_cols = ['Make', 'Model', 'Ext Color Code']
@@ -731,16 +759,21 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
 
             for (i, col_name) in enumerate(avis_make_cols):
                 v = dtt_veh_make[i]
+
+                fill = None
+                comment = None
+
                 if v is None:
                     # DTT string not found in our mapping table; ignore
-                    continue
+                    comment = Comment(f"No mapping for DTT value { dtt_veh_make_orig[i] }", COMMENT_AUTHOR)
 
-                comment = None
-                if v == avis_veh_make[i]:
-                    fill = FILL_GREEN
                 else:
-                    fill = FILL_YELLOW
-                    comment = Comment(f"DTT value is { dtt_veh_make_orig[i] } -> { v }", COMMENT_AUTHOR)
+
+                    if v == avis_veh_make[i]:
+                        fill = FILL_GREEN
+                    else:
+                        fill = FILL_YELLOW
+                        comment = Comment(f"DTT value is { dtt_veh_make_orig[i] } -> { v }", COMMENT_AUTHOR)
 
                 mark_cell(ws, fill, spreadsheet_row, columns, col_name, comment=comment)
             
@@ -1064,7 +1097,8 @@ def vehicle_to_group(vehicle):
         #log.debug(f"Found a group '{ group_name }'")
         return group_name
 
-    return None
+    return NO_GAP_GROUP
+
 
 def vehicle_to_gap(vehicle):
     """ returns the motor pool name if its a pool, otherwise None """
@@ -1104,16 +1138,28 @@ def get_vehicle_gap_groups(vehicles):
     groups = {}
 
     for vehicle in vehicles:
+
+        if vehicle['Status'] != 'Active':
+            continue
+
         gap = vehicle['Vehicle']['GAP']
         group = vehicle_to_group(vehicle['Vehicle'])
 
         if group is None:
-            log.info(f"Count not find Group in gap '{ gap }' vehicle { vehicle }")
+            if gap != '':
+                log.info(f"Count not find Group in gap '{ gap }' vehicle { vehicle }")
+            else:
+                groups[NO_GAP_GROUP] = True
+                pass
+            pass
         else:
             # remember that we saw this group; don't worry about duplicates
+            #log.debug(f"Adding group { group } from gap { gap }")
             groups[group] = True
 
-    return sorted(groups.keys())
+    group_list = sorted(groups.keys())
+    #log.debug(f"group_list { group_list }")
+    return group_list
 
 
 
@@ -1185,17 +1231,25 @@ def add_gap_sheet(wb, sheet_name, vehicles):
                 lookup_func = defs['key']
                 value = lookup_func(row_vehicle)
 
-                if value == 'None' or value == 'None None' or value == 'None None None':
+                if value is None or value == 'None' or value == 'None None' or value == 'None None None':
                     # no valid data; make it a blank
                     value = ''
+                #log.debug(f"adding cell { row },{ col }, value { value }")
                 cell = ws.cell(row=row, column=col, value=value)
             except:
                 log.info(f"Could not expand column { key } row_vehicle { row_vehicle }: { sys.exc_info()[0] }")
 
-    last_col_letter = openpyxl.utils.get_column_letter(col)
-    table_ref = f"A1:{ last_col_letter }{ row }"
-    table = openpyxl.worksheet.table.Table(displayName=f"{ sheet_name }Table", ref=table_ref)
-    ws.add_table(table)
+    # ZZZ: horrible hack; for some reason the no-gap table makes excel unhappy; I haven't been
+    # able to figure out why, so I'm just not adding a table for that sheet
+    if sheet_name != 'ZZZ-No-GAP':
+
+        last_col_letter = openpyxl.utils.get_column_letter(col)
+        table_ref = f"A1:{ last_col_letter }{ row }"
+        table = openpyxl.worksheet.table.Table(displayName=f"{ sheet_name }Table", ref=table_ref)
+
+        ws.add_table(table)
+    else:
+        log.debug(f"Ignoring table for ZZZ-No-Gap sheet")
 
 
 
