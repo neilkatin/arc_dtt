@@ -33,17 +33,19 @@ To install and run:
    look for "Authentiation Steps".  You will need to use your redcross.org acccount to register the app.
    You will need to add permissions to this application.  The list of permissions is in ```arc_o365/arc_o365.py```.
    Look for the ```_scopes_default``` definition.
-1. configure the public (checked into git) environment.  This is in config.py.  You'll almost certainly have to changee
+1. configure the public (checked into git) environment.  This is in config.py.  You'll almost certainly have to change
    some values in this file: the DR number and year.
 1. The first time you run the program (and after 90 days of non-usage) you will need to initialize your azure oauth 2 tokens.
    A URL will be output on the program output.  Copy and paste that into your browser.  There will be nothing displayed, but
-   after the browser has redirected a few times copy the new URL in the browser url bar back into the program window.
+   after the browser has redirected a few times copy the new URL in the browser url bar back into the program window, then
+   hit enter.
    That will initialize your oauth 2 token.
 1. run the program
     ```shell
     pipenv run ./main.py --debug
     ```
-    This will save a copy of the output in the local folder.  If you add the --store argument then the report will be stored on the server.
-    The store location is set in config.py
+    This will save a copy of the output in the local folder.
+
+    There are two files generated: avis.xslx and gap.xslx
 
 
