@@ -15,7 +15,11 @@ TRANS_REPORTS_FOLDER_PATH = '/Reports and Data Analytics workgroup/Auto-generate
 
 # info about the current DR we are reporting on
 DR_NUM = '155'       # without any leading zero
-DR_YEAR = '22'      # two digit year; will add optional leading '20'; yes this breaks next century...
+DR_YEAR = '22'      # two digit year; program will add optional leading '20'; yes this breaks next century...
 
 #DR_ID = '516'       # internal DTT id for the DR
 #DR_NAME = '155-2022 - GC Command 7/21 FOR'
+
+MAIL_BCC = 'generic@askneil.com'
+SEND_EMAIL = 'DR155-22Log-Tra2@redcross.org'
+REPLY_EMAIL = SEND_EMAIL

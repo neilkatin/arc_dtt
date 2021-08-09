@@ -1,0 +1,33 @@
+<html>
+  <head>
+      <title>Vehicle report for  {{ first_name }} {{ last_name }}</title>
+  </head>
+  <body>
+
+    <p>
+    This is an automated report to try to more accurately track our vehicles.
+    </p>
+
+    <p>
+    This report was sent to {{ first_name }} {{ last_name }}.
+    We think you have the following vehicle{{ vehicles|length|pluralize }}:
+    </p>
+
+    {% for row in vehicles %}
+        {% set v = row['Vehicle'] %}
+        <ul>
+            <li>Vehicle id: {{ v.KeyNumber }}</li>
+            <li>License plate: {{ v.PlateState }} {{ v.Plate }}
+        </ul>
+    {% endfor %}
+
+    <p>
+    If all that is correct: you don't need to do anything.  If its wrong: please email
+    <a href='mailto:{{ reply_email }}'>{{ reply_email }}</a>.
+    </p>
+
+    <p>
+    This email generated on {{ date }}
+    </p>
+  </body>
+</html>

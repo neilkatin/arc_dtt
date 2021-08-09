@@ -19,6 +19,7 @@ from openpyxl.comments import Comment
 
 import neil_tools
 from neil_tools import spreadsheet_tools
+from neil_tools import gen_templates
 
 import config as config_static
 import web_session
@@ -52,6 +53,9 @@ FILL_YELLOW = openpyxl.styles.PatternFill(fgColor="FFFFC0", fill_type = "solid")
 FILL_BLUE = openpyxl.styles.PatternFill(fgColor="5BB1CD", fill_type = "solid")
 FILL_CYAN = openpyxl.styles.PatternFill(fgColor="A0FFFF", fill_type = "solid")
 
+# flag in person object that they have a vehicle
+PERSON_HAS_VEHICLE = '__HAS_VEHICLE__'
+
 COMMENT_AUTHOR = "Avis Report Reconciler Program"
 
 NO_GAP_GROUP = 'ZZZ-No-GAP'
@@ -81,6 +85,10 @@ def main():
 
     # fetch the avis report
     account = init_o365(config)
+
+    if args.status_car or args.status_no_car:
+        do_status_messages(config, args, account, vehicles, people)
+        return
 
     # avis report
     if not args.ignore_avis:
@@ -1251,6 +1259,136 @@ def add_gap_sheet(wb, sheet_name, vehicles):
     else:
         log.debug(f"Ignoring table for ZZZ-No-Gap sheet")
 
+def do_status_messages(config, args, account, vehicles, people):
+
+
+    #vehicle_to_driver = make_vehicle_index(vehicles, 'CurrentDriverPersonId')
+
+    # make an index of person ids
+    id_to_person = dict( (p['PersonID'], p) for p in people )
+
+    templates = gen_templates.init()
+    date = datetime.datetime.now().strftime("%Y-%m-%d %H%M")
+
+
+    # group vehicles by who owns them
+    person_to_vehicle = {}
+
+    for row in vehicles:
+
+        # ignore non-active vehicles
+        if row['Status'] != 'Active':
+            continue
+
+        vehicle = row['Vehicle']
+
+        driver_id = vehicle['CurrentDriverPersonId']
+        driver = vehicle['CurrentDriverName']
+
+        if driver_id is None:
+            # no driver assigned yet
+            continue
+
+        # ZZZ: just do avis for now, because others are less well checked
+        if vehicle['Vendor'] != 'Avis':
+            continue
+
+
+        pool = motor_pool_re.match(driver)
+        if pool is not None:
+            # pool vehicle; don't bother messaging
+            continue
+
+
+        if driver_id not in id_to_person:
+            # assumption is we should always be able to find a driver
+            log.error(f"Could not find driver_id { driver_id } in person list ({ vehicle['CurrentDriverNameAndMemberNo'] })")
+            continue
+
+        person = id_to_person[driver_id]
+
+        # mark this person as having a vehicle
+        person[PERSON_HAS_VEHICLE] = True
+
+        # mark that person as having this vehicle
+        if driver_id not in person_to_vehicle:
+            person_to_vehicle[driver_id] = []
+        person_to_vehicle[driver_id].append(row)
+
+    templates = gen_templates.init()
+    t_vehicle = templates.get_template("mail_vehicle.html")
+
+    # now generate the emails
+    count = 0
+    for person_id, l in person_to_vehicle.items():
+        person = id_to_person[person_id]
+
+        first_name = person['FirstName']
+        last_name = person['LastName']
+        email = person['Email']
+
+        log.debug(f"person { first_name } { last_name } has { len(l) } vehicles")
+
+        context = {
+                'first_name': first_name,
+                'last_name': last_name,
+                'email': email,
+                'vehicles': l,
+                'reply_email': config.REPLY_EMAIL,
+                'date': date,
+                }
+
+        body = t_vehicle.render(context)
+
+        log.debug(f"body { body }")
+
+        m = account.new_message()
+        if args.test_send:
+            m.bcc.add(config.MAIL_BCC)
+        if args.send:
+            m.to.add(email)
+
+        m.subject = f"Vehicle Status - { date } - { first_name } { last_name }"
+        m.body = body
+
+        if args.test_send or args.send:
+            m.send()
+
+        
+        # debug only
+        count += 1
+        if args.mail_limit and count >= 5:
+            break
+
+
+
+
+    # now do people without vehicles
+
+    if args.status_no_car:
+        for i, person in enumerate(people):
+            
+            # ignore people that have vehicles
+            if PERSON_HAS_VEHICLE in person:
+                continue
+
+            status = person['Status']
+
+            # don't hassle folks who are off the job
+            if status == 'Out Process':
+                continue
+
+            first_name = person['FirstName']
+            last_name = person['LastName']
+            email = person['Email']
+
+            log.debug(f"({ i }) person { first_name } { last_name } { status } has no vehicles")
+
+            #if i > 10:
+            #    break
+
+
+
 
 
 def parse_args():
@@ -1261,6 +1399,11 @@ def parse_args():
     parser.add_argument("-s", "--store", help="Store file on server", action="store_true")
     parser.add_argument("--ignore-avis", help="Don't generate an Avis match report", action="store_true")
     parser.add_argument("--ignore-group", help="Don't generate a Group Vehicle report", action="store_true")
+    parser.add_argument("--status-car", help="Generate vehicle status messages", action="store_true")
+    parser.add_argument("--status-no-car", help="Generate vehicle status messages", action="store_true")
+    parser.add_argument("--send", help="Send messages to the actual intended recipients", action="store_true")
+    parser.add_argument("--test-send", help="Add the test email account to message recipients", action="store_true")
+    parser.add_argument("--mail-limit", help="debug flag to limit # of emails sent", action="store_true")
 
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--save-input", help="Save a copy of server inputs", action="store_true")

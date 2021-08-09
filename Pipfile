@@ -16,6 +16,8 @@ pytz = "*"
 python-dateutil = "*"
 openpyxl = "*"
 o365 = "*"
+jinja2 = "*"
+jinja2-pluralize = "*"
 
 [requires]
 python_version = "3.8"
