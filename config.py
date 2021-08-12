@@ -23,3 +23,6 @@ DR_YEAR = '22'      # two digit year; program will add optional leading '20'; ye
 MAIL_BCC = 'generic@askneil.com'
 SEND_EMAIL = 'DR155-22Log-Tra2@redcross.org'
 REPLY_EMAIL = SEND_EMAIL
+
+TOKEN_FILENAME_MAIL= 'o365_token-mail.txt'
+TOKEN_FILENAME_AVIS= 'o365_token-avis.txt'

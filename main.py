@@ -84,20 +84,23 @@ def main():
         agencies = get_agencies(config, args, session)
 
     # fetch the avis report
-    account = init_o365(config)
 
     if args.status_car or args.status_no_car:
-        do_status_messages(config, args, account, vehicles, people)
+        account_mail = init_o365(config, config.TOKEN_FILENAME_MAIL)
+        do_status_messages(config, args, account_mail, vehicles, people)
         return
+
+    account_avis = init_o365(config, config.TOKEN_FILENAME_AVIS)
 
     # avis report
     if not args.ignore_avis:
+
         # fetch the avis spreadsheet
-        output_bytes = make_avis(config, account, vehicles, agencies)
+        output_bytes = make_avis(config, account_avis, vehicles, agencies)
 
         if args.store:
             item_name = f"DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR } Avis Report { FILESTAMP }.xlsx"
-            store_report(config, account, item_name, output_bytes)
+            store_report(config, account_avis, item_name, output_bytes)
         else:
             # save a local copy instead
             file_name = 'avis.xlsx'
@@ -942,9 +945,14 @@ def read_avis_sheet(config, sheet):
 
 
 
-def init_o365(config):
+def init_o365(config, token_filename=None):
     """ do initial setup to get a handle on office 365 graph api """
-    o365 = arc_o365.arc_o365.arc_o365(config)
+
+    if token_filename != None:
+        o365 = arc_o365.arc_o365.arc_o365(config, token_filename=token_filename)
+    else:
+        o365 = arc_o365.arc_o365.arc_o365(config)
+
     account = o365.get_account()
     if account is None:
         raise Exception("could not access office 365 graph api")
