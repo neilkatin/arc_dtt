@@ -20,9 +20,13 @@ DR_YEAR = '22'      # two digit year; program will add optional leading '20'; ye
 #DR_ID = '516'       # internal DTT id for the DR
 #DR_NAME = '155-2022 - GC Command 7/21 FOR'
 
-MAIL_BCC = 'generic@askneil.com'
+EMAIL_BCC = 'generic@askneil.com'
 SEND_EMAIL = 'DR155-22Log-Tra2@redcross.org'
+EMAIL_TARGET_LIST = 'dr155-22-staffing-reports@AmericanRedCross.onmicrosoft.com'
+#EMAIL_TARGET_LIST = 'neil.katin@redcross.org'
 REPLY_EMAIL = SEND_EMAIL
 
-TOKEN_FILENAME_MAIL= 'o365_token-mail.txt'
-TOKEN_FILENAME_AVIS= 'o365_token-avis.txt'
+TOKEN_FILENAME_MAIL = 'o365_token-mail.txt'
+TOKEN_FILENAME_AVIS = 'o365_token-avis.txt'
+
+PROGRAM_EMAIL = 'neil.katin@redcross.org'

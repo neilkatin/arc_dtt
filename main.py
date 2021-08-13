@@ -17,6 +17,8 @@ import openpyxl.styles.colors
 import openpyxl.writer.excel
 from openpyxl.comments import Comment
 
+import requests
+
 import neil_tools
 from neil_tools import spreadsheet_tools
 from neil_tools import gen_templates
@@ -35,6 +37,7 @@ NOW = datetime.datetime.now().astimezone()
 DATESTAMP = NOW.strftime("%Y-%m-%d")
 TIMESTAMP = NOW.strftime("%Y-%m-%d %H:%M:%S %Z")
 FILESTAMP = NOW.strftime("%Y-%m-%d %H-%M-%S %Z")
+EMAILSTAMP = NOW.strftime("%Y-%m-%d %H-%M")
 
 # flag field in vehicle structures
 IN_AVIS = '__IN_AVIS__'
@@ -83,17 +86,23 @@ def main():
         people = get_people(config, args, session)
         agencies = get_agencies(config, args, session)
 
-    # fetch the avis report
+
+    account_mail = None
+    account_avis = None
+
+    if args.send or args.test_send:
+        log.debug(f"initializing mail account: { config.TOKEN_FILENAME_MAIL }")
+        account_mail = init_o365(config, config.TOKEN_FILENAME_MAIL)
+
 
     if args.status_car or args.status_no_car:
-        account_mail = init_o365(config, config.TOKEN_FILENAME_MAIL)
         do_status_messages(config, args, account_mail, vehicles, people)
         return
 
-    account_avis = init_o365(config, config.TOKEN_FILENAME_AVIS)
 
     # avis report
     if not args.ignore_avis:
+        account_avis = init_o365(config, config.TOKEN_FILENAME_AVIS)
 
         # fetch the avis spreadsheet
         output_bytes = make_avis(config, account_avis, vehicles, agencies)
@@ -115,14 +124,85 @@ def main():
 
         if args.store:
             item_name = f"DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR } Vehicles by GAP { FILESTAMP }.xlsx"
-            store_report(config, account, item_name, output_bytes)
+            store_report(config, account_mail, item_name, output_bytes)
 
         else:
             # save a local copy instead
-            file_name = 'gap.xlsx'
+            file_name = f"{ EMAILSTAMP } Group Vehicle Report.xlsx"
             log.debug(f"storing gap report to { file_name }")
             with open(file_name, "wb") as fb:
                 fb.write(output_bytes)
+
+        if args.send or args.test_send:
+            send_group_report(config, args, account_mail, file_name)
+
+
+def send_group_report(config, args, account, file_name):
+    """ send an email with the group vehicle report (contained in file_name).
+
+        Respect the args.send and args.test_send flags (at least one of which must be set
+    """
+
+    mailbox = account.mailbox()
+    message = mailbox.new_message()
+
+    if args.test_send:
+        message.bcc.add([config.EMAIL_BCC])
+
+    if args.send:
+        message.bcc.add([config.EMAIL_TARGET_LIST])
+        posting = f"<p>This message was sent to { config.EMAIL_TARGET_LIST }.  Please do *not* reply to the whole list</p>\n"
+    else:
+        posting = \
+f"""
+<p>
+DEBUG Version: not sent to the list
+</p>
+"""
+
+    message.body = \
+f"""
+<!DOCTYPE html>
+<html>
+<meta http-equiv="Content-type" content="text/html" charset="UTF8" />
+<title>DR{ config.DR_NUM }-{ config.DR_YEAR } Group Vehicle Report</title>
+</head>
+<body>
+
+<h1>DR{ config.DR_NUM }-{ config.DR_YEAR } Group Vehicle Report</h1>
+{ posting }
+
+<p>
+Hello everyone.  This is an automated report showing vehicles on the DR organized by GAP 'Group'
+</p>
+
+<p>
+If you have any updates or corrections: please send them to
+<a href='mailto:{ config.REPLY_EMAIL }'>{ config.REPLY_EMAIL }</a>.
+</p>
+
+<p>
+If you have suggestions about the contents of the report or bugs in the program itself,
+or have other tasks you think should be automated on a DR: email
+<a href='mailto:{ config.PROGRAM_EMAIL }'>{ config.PROGRAM_EMAIL }</a>.
+</p>
+
+</body>
+</html>
+"""
+
+    message.subject = f"Group Vehicle Reports { TIMESTAMP }"
+    message.attachments.add( file_name )
+
+    try:
+        message.send(save_to_sent_folder=True)
+    except requests.RequestException as e:
+        log.error(f"got an error: { e }, response json { e.response.json }")
+        raise e
+
+
+
+
 
 def fetch_avis(config, account):
     """ get the most recent avis workbook """
@@ -867,25 +947,14 @@ def insert_group_overview(wb, config):
     doc_string = f"""
 This document has vehicles for DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR }.
 
-Directions for completing the Group Vehice Report
+Asset Management is the responsibility of the Group Leads.  This report shows
+who has a vehicle that Transportation has in its database.
 
-Transportation: Send report to Job Director, Section Leads/Assistant
-Directors and Group Leads. Use Contact Roster in IAP for current list.
+Please help us keep the database up to date.  Send all updates to { config.REPLY_EMAIL }.
 
-Section Leads/Assistant Directors/ Group Leads - Please have Vehicle Report reviewed for accuracy.                                     
+Notes:
 
-Asset Management is the responsibility of the Group Leads.
-
-1) Groups are separated by TABS. Please review the appropriate TAB and complete Coumns P,Q R and S.
-
-2) If the answer is NO in Columns P,Q and R, please mark appropriate line with an X. If the work
-location is incorrect,   please note current location of Driver/vehicle.
-
-3) If the answer to Column S is YES and you can relinquish a vehicle, please mark appropriate line with an X.                       
-
-4) Return Worksheet within 2 days of receipt to DRXXX-XXLOG-TRA1@redcross.org. If there were no changes
-to your Group's vehicle list type in the body of the email - Group name (IDC, IP,..) and "No Changes".                                                         
-5) Copy Section Lead/Assistant Director on email.
+* Groups are separated into separate tabs.
 
 This file generated at { TIMESTAMP }
 
@@ -1101,6 +1170,9 @@ def vehicle_to_group(vehicle):
     """ turn a Gap (Group/Activity/Position) name into just the Group portion """
 
     gap = vehicle['GAP']
+    if gap is None:
+        gap = ''
+
     driver = vehicle['CurrentDriverName']
 
     pool = vehicle_in_pool(vehicle)
@@ -1124,6 +1196,9 @@ def vehicle_to_gap(vehicle):
         return pool
 
     gap = vehicle['GAP']
+    if gap is None:
+        gap = ''
+
     return gap
 
 
@@ -1352,7 +1427,7 @@ def do_status_messages(config, args, account, vehicles, people):
 
         m = account.new_message()
         if args.test_send:
-            m.bcc.add(config.MAIL_BCC)
+            m.bcc.add(config.EMAIL_BCC)
         if args.send:
             m.to.add(email)
 
