@@ -86,6 +86,11 @@ def main():
         people = get_people(config, args, session)
         agencies = get_agencies(config, args, session)
 
+        for row in vehicles:
+            v = row['Vehicle']
+            if v['Expiry'] != False:
+                log.debug(f"found expiry: { v }\n")
+
 
     account_mail = None
     account_avis = None
@@ -95,13 +100,13 @@ def main():
         account_mail = init_o365(config, config.TOKEN_FILENAME_MAIL)
 
 
-    if args.status_car or args.status_no_car:
+    if args.do_car or args.do_no_car:
         do_status_messages(config, args, account_mail, vehicles, people)
         return
 
 
     # avis report
-    if not args.ignore_avis:
+    if args.do_avis:
         account_avis = init_o365(config, config.TOKEN_FILENAME_AVIS)
 
         # fetch the avis spreadsheet
@@ -118,7 +123,7 @@ def main():
                 fb.write(output_bytes)
 
     # group vehicle report
-    if not args.ignore_group:
+    if args.do_group:
         # generate the group report
         output_bytes = make_group_report(config, vehicles)
 
@@ -664,6 +669,7 @@ dtt_to_avis_make_dict = {
         'Nissan': 'NISS',
         'Mazda': 'MAZD',
         'Subaru': 'SUBA',
+        'Volkswagon': 'VOLK',
         }
 dtt_to_avis_model_dict = {
         'Corolla': 'CRLA',
@@ -685,6 +691,13 @@ dtt_to_avis_model_dict = {
         'RAV 4': 'RAV4',
         'Sportage': 'SPO2',
         'Outback': 'OUTB',
+        'Sentra': 'SENT',
+        'Ecosport': 'ECOA',
+        'Highlander': 'HIGH',
+        'Golf': 'GOLF',
+        'Legacy': 'LEGA',
+        'Sonata': 'SONA',
+        'Optima': 'OPTI',
         }
 dtt_to_avis_color_dict = {
         'Silver': 'SIL',
@@ -1402,53 +1415,54 @@ def do_status_messages(config, args, account, vehicles, people):
     t_vehicle = templates.get_template("mail_vehicle.html")
 
     # now generate the emails
-    count = 0
-    for person_id, l in person_to_vehicle.items():
-        person = id_to_person[person_id]
+    if args.do_car:
+        count = 0
+        for person_id, l in person_to_vehicle.items():
+            person = id_to_person[person_id]
 
-        first_name = person['FirstName']
-        last_name = person['LastName']
-        email = person['Email']
+            first_name = person['FirstName']
+            last_name = person['LastName']
+            email = person['Email']
 
-        log.debug(f"person { first_name } { last_name } has { len(l) } vehicles")
+            log.debug(f"person { first_name } { last_name } has { len(l) } vehicles")
 
-        context = {
-                'first_name': first_name,
-                'last_name': last_name,
-                'email': email,
-                'vehicles': l,
-                'reply_email': config.REPLY_EMAIL,
-                'date': date,
-                }
+            context = {
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'email': email,
+                    'vehicles': l,
+                    'reply_email': config.REPLY_EMAIL,
+                    'date': date,
+                    }
 
-        body = t_vehicle.render(context)
+            body = t_vehicle.render(context)
 
-        log.debug(f"body { body }")
+            log.debug(f"body { body }")
 
-        m = account.new_message()
-        if args.test_send:
-            m.bcc.add(config.EMAIL_BCC)
-        if args.send:
-            m.to.add(email)
+            m = account.new_message()
+            if args.test_send:
+                m.bcc.add(config.EMAIL_BCC)
+            if args.send:
+                m.to.add(email)
 
-        m.subject = f"Vehicle Status - { date } - { first_name } { last_name }"
-        m.body = body
+            m.subject = f"Vehicle Status - { date } - { first_name } { last_name }"
+            m.body = body
 
-        if args.test_send or args.send:
-            m.send()
+            if args.test_send or args.send:
+                m.send()
 
-        
-        # debug only
-        count += 1
-        if args.mail_limit and count >= 5:
-            break
+            
+            # debug only
+            count += 1
+            if args.mail_limit and count >= 5:
+                break
 
 
 
 
     # now do people without vehicles
 
-    if args.status_no_car:
+    if args.do_no_car:
         for i, person in enumerate(people):
             
             # ignore people that have vehicles
@@ -1480,10 +1494,10 @@ def parse_args():
             allow_abbrev=False)
     parser.add_argument("--debug", help="turn on debugging output", action="store_true")
     parser.add_argument("-s", "--store", help="Store file on server", action="store_true")
-    parser.add_argument("--ignore-avis", help="Don't generate an Avis match report", action="store_true")
-    parser.add_argument("--ignore-group", help="Don't generate a Group Vehicle report", action="store_true")
-    parser.add_argument("--status-car", help="Generate vehicle status messages", action="store_true")
-    parser.add_argument("--status-no-car", help="Generate vehicle status messages", action="store_true")
+    parser.add_argument("--do-avis", help="Generate an Avis match report", action="store_true")
+    parser.add_argument("--do-group", help="Generate a Group Vehicle report", action="store_true")
+    parser.add_argument("--do-car", help="Generate vehicle status messages", action="store_true")
+    parser.add_argument("--do-no-car", help="Generate vehicle status messages", action="store_true")
     parser.add_argument("--send", help="Send messages to the actual intended recipients", action="store_true")
     parser.add_argument("--test-send", help="Add the test email account to message recipients", action="store_true")
     parser.add_argument("--mail-limit", help="debug flag to limit # of emails sent", action="store_true")
@@ -1493,6 +1507,11 @@ def parse_args():
     group.add_argument("--cached-input", help="Use cached server input", action="store_true")
 
     args = parser.parse_args()
+
+    if not args.do_avis and not args.do_group and not args.do_car and not args.do_no_car:
+        log.error("At least one of do-avis, do-group, do-car, or do-no-car must be specified")
+        sys.exit(1)
+
     return args
 
 
