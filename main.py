@@ -71,9 +71,21 @@ def main():
 
     config = neil_tools.init_config(config_static, ".env")
 
-    # fetch from DTT
-    if True:
-        session = web_session.get_session(config)
+    errors = False
+    for dr in args.dr_id:
+        if dr not in config.DR_CONFIGURATIONS:
+            log.error(f"specified DR ID '{ dr }' not found in configured DRs.  Valid DRs are { list(config.DR_CONFIGURATIONS.keys()) }")
+            errors = True
+
+    if errors:
+        return
+
+    account_avis = None
+    for dr in args.dr_id:
+        dr_config = config.DR_CONFIGURATIONS[dr]
+
+        # fetch from DTT
+        session = web_session.get_session(config, dr_config)
 
         # ZZZ: should validate session here, and re-login if it isn't working...
         if 'DR_ID' not in config:
@@ -86,77 +98,176 @@ def main():
         people = get_people(config, args, session)
         agencies = get_agencies(config, args, session)
 
+        # debuging only
         for row in vehicles:
             v = row['Vehicle']
             if v['Expiry'] != False:
-                log.debug(f"found expiry: { v }\n")
+                #log.debug(f"found expiry: { v }\n")
+                pass
 
 
-    account_mail = None
-    account_avis = None
+        account_mail = None
 
-    if args.send or args.test_send:
-        log.debug(f"initializing mail account: { config.TOKEN_FILENAME_MAIL }")
-        account_mail = init_o365(config, config.TOKEN_FILENAME_MAIL)
-
-
-    if args.do_car or args.do_no_car:
-        do_status_messages(config, args, account_mail, vehicles, people)
-        return
+        if args.send or args.test_send:
+            log.debug(f"initializing mail account: { dr_config.token_filename }")
+            account_mail = init_o365(config, dr_config.token_filename)
 
 
-    # avis report
-    if args.do_avis:
-        account_avis = init_o365(config, config.TOKEN_FILENAME_AVIS)
+        if args.do_car or args.do_no_car:
+            do_status_messages(config, args, account_mail, vehicles, people)
 
-        # fetch the avis spreadsheet
-        output_bytes = make_avis(config, account_avis, vehicles, agencies)
 
-        if args.store:
-            item_name = f"DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR } Avis Report { FILESTAMP }.xlsx"
-            store_report(config, account_avis, item_name, output_bytes)
-        else:
-            # save a local copy instead
-            file_name = 'avis.xlsx'
+        # avis report
+        if args.do_avis:
+            if account_avis == None:
+                account_avis = init_o365(config, config.TOKEN_FILENAME_AVIS)
+
+            # fetch the avis spreadsheet
+            output_bytes = make_avis(config, dr_config, account_avis, vehicles, agencies)
+
+            file_name = f"DR{ dr_config.dr_id } { FILESTAMP } Avis Report.xlsx"
+            if args.store:
+                store_report(config, account_avis, file_name, output_bytes)
+
+            # save a local copy
             log.debug(f"storing avis report to { file_name }")
             with open(file_name, "wb") as fb:
                 fb.write(output_bytes)
 
-    # group vehicle report
-    if args.do_group:
-        # generate the group report
-        output_bytes = make_group_report(config, vehicles)
+            if args.send or args.test_send:
+                send_avis_report(dr_config, args, account_mail, file_name)
 
-        if args.store:
-            item_name = f"DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR } Vehicles by GAP { FILESTAMP }.xlsx"
-            store_report(config, account_mail, item_name, output_bytes)
 
-        else:
-            # save a local copy instead
-            file_name = f"{ EMAILSTAMP } Group Vehicle Report.xlsx"
+        # group vehicle report
+        if args.do_group:
+            # generate the group report
+            output_bytes = make_group_report(config, dr_config, vehicles)
+            file_name = f"DR{ dr_config.dr_id } { FILESTAMP } Group Vehicle Report.xlsx"
+
+            if args.store:
+                store_report(config, account_mail, file_name, output_bytes)
+
+            # save a local copy for attachment
             log.debug(f"storing gap report to { file_name }")
             with open(file_name, "wb") as fb:
                 fb.write(output_bytes)
 
-        if args.send or args.test_send:
-            send_group_report(config, args, account_mail, file_name)
+            if args.send or args.test_send:
+                send_group_report(dr_config, args, account_mail, file_name)
+
+        if args.do_vehicles:
+            output_bytes = make_vehicle_backup(config, dr_config, vehicles)
+
+            if args.store:
+                item_name = f"DR{ dr_config.dr_id } { FILESTAMP } Vehicle Backup.xlsx"
+                store_report(config, account_mail, item_name, output_bytes)
 
 
-def send_group_report(config, args, account, file_name):
+
+
+def make_vehicle_backup(config, dr_config, vehicles):
+    """ generate a spreadsheet of all the vehicles as a backup """
+
+    wb = openpyxl.Workbook()
+    ws = wb.create_sheet("Backup")
+
+    class ColumnDef:
+
+        def __init__(name, dtype="string", width=10):
+            self._name = name
+            self._dtype = dtype
+            self._width = width
+
+        @property 
+        def name(self):
+            return self._name
+
+        @property 
+        def dtype(self):
+            return self._dtype
+
+        @property 
+        def width(self):
+            return self._width
+
+    columns = [
+            ColumnDef("Expiring"),
+            ColumnDef("Ctg"),
+            ]
+
+    for row in vehicles:
+        for v in row['Vehicle']:
+            pass
+
+
+    wb_buffer = workbook_to_buffer(wb)
+    return wb_buffer
+
+
+def send_avis_report(dr_config, args, account, file_name):
+    """ send an email with the avis report (contained in file_name).
+
+        Respect the args.send and args.test_send flags (at least one of which must be set
+    """
+
+    message_body = \
+f"""
+<p>
+Hello everyone.  This is an automated report matching vehicles in the DTT against
+a list of vehicles provided by Avis.  The Avis list tends to be delayed by 24-48 hours.
+</p>
+
+<p>
+If you have suggestions about the contents of the report or bugs in the program itself,
+or have other tasks you think should be automated on a DR: email
+<a href='mailto:{ dr_config.program_email }'>{ dr_config.program_email }</a>.
+</p>
+"""
+
+    send_report_common(dr_config, args, account, file_name, "Group Vehicle Report", message_body, dr_config.reply_email)
+
+
+
+def send_group_report(dr_config, args, account, file_name):
     """ send an email with the group vehicle report (contained in file_name).
 
         Respect the args.send and args.test_send flags (at least one of which must be set
     """
 
+    message_body = \
+f"""
+<p>
+Hello everyone.  This is an automated report showing vehicles on the DR organized by GAP 'Group'
+</p>
+
+<p>
+If you have any updates or corrections: please send them to
+<a href='mailto:{ dr_config.reply_email }'>{ dr_config.reply_email }</a>.
+</p>
+
+<p>
+If you have suggestions about the contents of the report or bugs in the program itself,
+or have other tasks you think should be automated on a DR: email
+<a href='mailto:{ dr_config.program_email }'>{ dr_config.program_email }</a>.
+</p>
+"""
+
+    send_report_common(dr_config, args, account, file_name, "Group Vehicle Report", message_body, dr_config.target_list)
+
+
+
+def send_report_common(dr_config, args, account, file_name, report_type, message_body, dest_email):
+
     mailbox = account.mailbox()
     message = mailbox.new_message()
 
     if args.test_send:
-        message.bcc.add([config.EMAIL_BCC])
+        message.bcc.add(dr_config.email_bcc)
 
     if args.send:
-        message.bcc.add([config.EMAIL_TARGET_LIST])
-        posting = f"<p>This message was sent to { config.EMAIL_TARGET_LIST }.  Please do *not* reply to the whole list</p>\n"
+        message.bcc.add(dest_email)
+        log.debug(f"sending { file_name } to { dest_email }")
+        posting = f"<p>This message was sent to { dest_email }.  Please do *not* reply to the whole list</p>\n"
     else:
         posting = \
 f"""
@@ -170,33 +281,20 @@ f"""
 <!DOCTYPE html>
 <html>
 <meta http-equiv="Content-type" content="text/html" charset="UTF8" />
-<title>DR{ config.DR_NUM }-{ config.DR_YEAR } Group Vehicle Report</title>
+<title>DR{ dr_config.dr_id } { report_type }</title>
 </head>
 <body>
 
-<h1>DR{ config.DR_NUM }-{ config.DR_YEAR } Group Vehicle Report</h1>
+<h1>DR{ dr_config.dr_id } { report_type }</h1>
 { posting }
 
-<p>
-Hello everyone.  This is an automated report showing vehicles on the DR organized by GAP 'Group'
-</p>
-
-<p>
-If you have any updates or corrections: please send them to
-<a href='mailto:{ config.REPLY_EMAIL }'>{ config.REPLY_EMAIL }</a>.
-</p>
-
-<p>
-If you have suggestions about the contents of the report or bugs in the program itself,
-or have other tasks you think should be automated on a DR: email
-<a href='mailto:{ config.PROGRAM_EMAIL }'>{ config.PROGRAM_EMAIL }</a>.
-</p>
+{ message_body }
 
 </body>
 </html>
 """
 
-    message.subject = f"Group Vehicle Reports { TIMESTAMP }"
+    message.subject = file_name
     message.attachments.add( file_name )
 
     try:
@@ -204,8 +302,6 @@ or have other tasks you think should be automated on a DR: email
     except requests.RequestException as e:
         log.error(f"got an error: { e }, response json { e.response.json }")
         raise e
-
-
 
 
 
@@ -257,22 +353,22 @@ def fetch_avis(config, account):
 
     return workbook
 
-def make_avis(config, account, vehicles, agencies):
+def make_avis(config, dr_config, account, vehicles, agencies):
     """ fetch the latest avis vehicle report from sharepoint """
 
     workbook = fetch_avis(config, account)
 
     output_wb = openpyxl.Workbook()
-    insert_avis_overview(output_wb, config)
+    insert_avis_overview(output_wb, config, dr_config)
 
 
     output_ws_open = output_wb.create_sheet("Open RA")
 
     # we now have the latest file.  Suck out all the data
-    avis_open_title, avis_open_columns, avis_open, avis_open_all = read_avis_sheet(config, workbook.get_worksheet('Open RA'))
+    avis_open_title, avis_open_columns, avis_open, avis_open_all = read_avis_sheet(dr_config, workbook.get_worksheet('Open RA'))
     add_missing_avis_vehicles(vehicles, avis_open_all, avis_open, closed=False)
 
-    #avis_closed_title, avis_closed_columns, avis_closed, avis_closed_all = read_avis_sheet(config, workbook.get_worksheet('Closed RA'))
+    #avis_closed_title, avis_closed_columns, avis_closed, avis_closed_all = read_avis_sheet(dr_config, workbook.get_worksheet('Closed RA'))
     #add_missing_avis_vehicles(vehicles, avis_closed_all, avis_closed, closed=True)
 
     # generate the 'Open RA' sheet
@@ -460,8 +556,8 @@ def make_vehicle_index(vehicles, first_field, second_field=None, reservation=Fal
                 continue
             key = key + " " + vehicle[second_field]
 
-        #log.debug(f"make_vehicle_index: key { key }")
-        result[key] = row
+        #log.debug(f"make_vehicle_index: key { key.upper() }")
+        result[key.upper()] = row
 
     return result
 
@@ -617,6 +713,7 @@ def make_avis_from_vehicle(record):
 def get_dtt_id(vehicle_dict, index):
     """ utility function to look up a field in the vehicle object from the DTT """
 
+    index = index.upper()
     if index not in vehicle_dict:
         return None
 
@@ -822,9 +919,9 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
                     fill = FILL_GREEN
                 else:
                     fill = FILL_YELLOW
-                    #log.debug(f"no agency match '{ addr_line }' / { agency_key }")
+                    log.debug(f"no agency match '{ addr_line }' / '{ agency_string }'")
 
-                    comment = Comment(f"DTT location is { agency['Name'] }", COMMENT_AUTHOR)
+                    comment = Comment(f"DTT location is { agency['Name'] } / { agency_string }", COMMENT_AUTHOR)
 
                 mark_cell(ws, fill, spreadsheet_row, columns, 'Rental Loc Desc', comment=comment)
                 mark_cell(ws, fill, spreadsheet_row, columns, 'Address Line 1')
@@ -906,11 +1003,11 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
 
 
 
-def insert_avis_overview(wb, config):
+def insert_avis_overview(wb, config, dr_config):
     """ insert an overview (documentation) sheet in the workbook """
 
     doc_string = f"""
-This document has vehicles from the daily Avis report for this DR ({ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR }).
+This document has vehicles from the daily Avis report for this DR ({ dr_config.dr_id }).
 
 On the Open RA (rental agreement) sheet there should be one row per vehicle marked as assigned to the DR
 (from the 'Cost Control No' column).
@@ -955,15 +1052,15 @@ This file generated at { TIMESTAMP }
 
     return ws
 
-def insert_group_overview(wb, config):
+def insert_group_overview(wb, dr_config):
 
     doc_string = f"""
-This document has vehicles for DR{ config.DR_NUM.rjust(3, '0') }-{ config.DR_YEAR }.
+This document has vehicles for DR{ dr_config.dr_id }.
 
 Asset Management is the responsibility of the Group Leads.  This report shows
 who has a vehicle that Transportation has in its database.
 
-Please help us keep the database up to date.  Send all updates to { config.REPLY_EMAIL }.
+Please help us keep the database up to date.  Send all updates to { dr_config.reply_email }.
 
 Notes:
 
@@ -991,7 +1088,7 @@ def insert_overview(wb, doc_string):
 
     return ws
 
-def read_avis_sheet(config, sheet):
+def read_avis_sheet(dr_config, sheet):
 
     log.debug(f"sheet name { sheet.name }")
     sheet_range = sheet.get_used_range()
@@ -1014,7 +1111,9 @@ def read_avis_sheet(config, sheet):
 
     # trying to match patterns like:
     # 98, 098, DR098, DR098-21, DR098-2021, 098-21, etc...
-    dr_regex = re.compile(f"(dr)?\s*0*{ config.DR_NUM }(-(20)?{ config.DR_YEAR })?", flags=re.IGNORECASE)
+    dr_num = dr_config.dr_num
+    dr_num = dr_num.lstrip('0')
+    dr_regex = re.compile(f"(dr)?\s*0*{ dr_num }(-(20)?{ dr_config.dr_year })?", flags=re.IGNORECASE)
 
     #avis_dr = list(filter(lambda x: dr_regex.match(x), avis_all))
     f_result = filter(lambda row: dr_regex.match(row[dr_column]), avis_all)
@@ -1153,11 +1252,11 @@ def store_report(config, account, item_name, wb_bytes):
     log.debug(f"after upload: result { result }")
 
 
-def make_group_report(config, vehicles):
+def make_group_report(config, dr_config, vehicles):
     """ make a workbook of all vehicles, arranged by GAPs """
 
     wb = openpyxl.Workbook()
-    insert_group_overview(wb, config)
+    insert_group_overview(wb, dr_config)
 
     # sort the vehicles by GAP
     vehicles = sorted(vehicles, key=lambda x: vehicle_to_gap(x['Vehicle']))
@@ -1496,11 +1595,13 @@ def parse_args():
     parser.add_argument("-s", "--store", help="Store file on server", action="store_true")
     parser.add_argument("--do-avis", help="Generate an Avis match report", action="store_true")
     parser.add_argument("--do-group", help="Generate a Group Vehicle report", action="store_true")
+    parser.add_argument("--do-vehicles", help="Generate a Vehicle backup", action="store_true")
     parser.add_argument("--do-car", help="Generate vehicle status messages", action="store_true")
     parser.add_argument("--do-no-car", help="Generate vehicle status messages", action="store_true")
     parser.add_argument("--send", help="Send messages to the actual intended recipients", action="store_true")
     parser.add_argument("--test-send", help="Add the test email account to message recipients", action="store_true")
     parser.add_argument("--mail-limit", help="debug flag to limit # of emails sent", action="store_true")
+    parser.add_argument("--dr-id", help="the name of the DR (like 155-22)", required=True, action="append")
 
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--save-input", help="Save a copy of server inputs", action="store_true")

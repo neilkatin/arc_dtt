@@ -33,13 +33,13 @@ log = logging.getLogger(__name__)
 
 
 
-def get_session(config, session=None):
+def get_session(config, dr_config, session=None):
 
     cookies = None
 
     if session == None:
         try:
-            cookies = LWPCookieJar(config.COOKIE_FILE)
+            cookies = LWPCookieJar(dr_config.cookie_filename)
             #log.debug("before cookie load")
             cookies.load(ignore_discard=True, ignore_expires=True);
             #log.debug("after cookie load")
@@ -52,7 +52,7 @@ def get_session(config, session=None):
         session = requests_html.HTMLSession()
 
     if cookies == None:
-        cookies = _refresh_cookies_using_web(config, session)
+        cookies = _refresh_cookies_using_web(config, dr_config, session)
 
     if cookies == None:
         log.fatal("Could not log into volunteer connection")
@@ -65,17 +65,17 @@ def get_session(config, session=None):
     return session
 
 
-def _refresh_cookies_using_web(config, session):
+def _refresh_cookies_using_web(config, dr_config, session):
 
     cookies = None
 
     try:
-        user = config['DTT_USER']
+        user = dr_config.dtt_user
         password = config['DTT_PASS']
         url = config['DTT_URL']
         timeout = config['REQUESTS_TIMEOUT']
 
-        cookies = LWPCookieJar(config.COOKIE_FILE)
+        cookies = LWPCookieJar(dr_config.cookie_filename)
         session.cookies = cookies
 
         _get_login_web(session, user, password, url, timeout)
@@ -178,7 +178,7 @@ def _refresh_cookies_using_selenium(config):
         password = config['SCRAPE_PASS']
 
         get_login_selenium(driver, config, user, password)
-        cookies = requests_session_with_selenium_cookies(driver, config)
+        cookies = requests_session_with_selenium_cookies(driver, dr_config, config)
 
     finally:
         # clean up afterwards
@@ -225,7 +225,7 @@ def get_login_selenium(driver, config, user, password):
 
 
 
-def requests_session_with_selenium_cookies(driver, config):
+def requests_session_with_selenium_cookies(driver, dr_config, config):
     """
     Return a Requests library session object initialized with the cookies from Selenium.
 
@@ -234,7 +234,7 @@ def requests_session_with_selenium_cookies(driver, config):
     intercepting file downloads)
     """
 
-    cookies = LWPCookieJar(config.COOKIE_FILE)
+    cookies = LWPCookieJar(dr_config.cookie_filename)
 
     selenium_cookies = driver.get_cookies()
 
