@@ -138,6 +138,9 @@ def main():
                 send_avis_report(dr_config, args, account_mail, file_name)
 
 
+            if not args.save:
+                os.remove(file_name)
+
         # group vehicle report
         if args.do_group:
             # generate the group report
@@ -154,6 +157,9 @@ def main():
 
             if args.send or args.test_send:
                 send_group_report(dr_config, args, account_mail, file_name)
+
+            if not args.save:
+                os.remove(file_name)
 
         if args.do_vehicles:
             output_bytes = make_vehicle_backup(config, dr_config, vehicles)
@@ -1599,6 +1605,7 @@ def parse_args():
     parser.add_argument("--do-car", help="Generate vehicle status messages", action="store_true")
     parser.add_argument("--do-no-car", help="Generate vehicle status messages", action="store_true")
     parser.add_argument("--send", help="Send messages to the actual intended recipients", action="store_true")
+    parser.add_argument("--save", help="Keep a copy of the generated report", action="store_true")
     parser.add_argument("--test-send", help="Add the test email account to message recipients", action="store_true")
     parser.add_argument("--mail-limit", help="debug flag to limit # of emails sent", action="store_true")
     parser.add_argument("--dr-id", help="the name of the DR (like 155-22)", required=True, action="append")

@@ -18,6 +18,8 @@ openpyxl = "*"
 o365 = "*"
 jinja2 = "*"
 jinja2-pluralize = "*"
+xlrd = "*"
+tzdata = "*"
 
 [requires]
 python_version = "3.8"
