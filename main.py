@@ -230,7 +230,7 @@ or have other tasks you think should be automated on a DR: email
 </p>
 """
 
-    send_report_common(dr_config, args, account, file_name, "Group Vehicle Report", message_body, dr_config.reply_email)
+    send_report_common(dr_config, args, account, file_name, "Avis Report", message_body, dr_config.reply_email)
 
 
 
