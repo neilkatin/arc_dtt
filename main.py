@@ -946,7 +946,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
                     fill = FILL_YELLOW
                     log.debug(f"no agency match '{ addr_line }' / '{ agency_string }'")
 
-                    comment = Comment(f"DTT location is { agency['Name'] } / { agency_string }", COMMENT_AUTHOR)
+                    comment = Comment(f"DTT location is { agency['Name'] } / { agency_string }", COMMENT_AUTHOR, height=300, width=400)
 
                 mark_cell(ws, fill, spreadsheet_row, columns, 'Rental Loc Desc', comment=comment)
                 mark_cell(ws, fill, spreadsheet_row, columns, 'Address Line 1')
@@ -970,7 +970,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
                     else:
                         #log.debug(f"pickup date: key { key } dtt { dtt_date }/{vehicle[dtt_col]} avis { avis_pickup_date }/{ avis_pickup_dt }")
                         fill = FILL_YELLOW
-                        cell.comment = Comment(f"DTT date is { dtt_date }", COMMENT_AUTHOR)
+                        cell.comment = Comment(f"DTT date is { dtt_date }", COMMENT_AUTHOR, height=300, width=400)
 
                     cell.fill = fill
 
@@ -991,7 +991,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
 
                 if v is None:
                     # DTT string not found in our mapping table; ignore
-                    comment = Comment(f"No mapping for DTT value { dtt_veh_make_orig[i] }", COMMENT_AUTHOR)
+                    comment = Comment(f"No mapping for DTT value { dtt_veh_make_orig[i] }", COMMENT_AUTHOR, height=300, width=400)
 
                 else:
 
@@ -999,7 +999,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
                         fill = FILL_GREEN
                     else:
                         fill = FILL_YELLOW
-                        comment = Comment(f"DTT value is { dtt_veh_make_orig[i] } -> { v }", COMMENT_AUTHOR)
+                        comment = Comment(f"DTT value is { dtt_veh_make_orig[i] } -> { v }", COMMENT_AUTHOR, height=300, width=400)
 
                 mark_cell(ws, fill, spreadsheet_row, columns, col_name, comment=comment)
             
