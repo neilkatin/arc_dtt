@@ -46,6 +46,9 @@ class DRConfig:
 
         self._reply_email = reply_email if reply_email != None else send_email
 
+        self._id = None
+        self._name = None
+
         DR_CONFIGURATIONS[self.dr_id] = self
 
     @property
@@ -83,6 +86,22 @@ class DRConfig:
     @property
     def dr_id(self):
         return f"{ self._dr_num }-{ self._dr_year }"
+
+    @property
+    def id(self):
+        return self._id
+
+    @id.setter
+    def id(self, value):
+        self._id = value
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
 
     @property
     def token_filename(self):

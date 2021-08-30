@@ -13,8 +13,10 @@ import base64
 
 import requests
 import xlrd
+import vobject
 
 import neil_tools
+import neil_tools.spreadsheet_tools as spreadsheet_tools
 import message
 
 import config as config_static
@@ -44,10 +46,12 @@ def main():
     for dr_id in args.dr_id:
         contents = message.fetch_dr_roster(config, dr_id)
 
-        make_vcard_from_roster(contents)
+        filename = f"{ FILESTAMP }-roster.vcf"
+        with open(filename, "w") as fd:
+            make_vcard_from_roster(contents, fd, dr_id)
 
 
-def make_vcard_from_roster(contents):
+def make_vcard_from_roster(contents, fd, dr_id):
     """ produce a vcard file from the roster """
 
     wb = xlrd.open_workbook(file_contents=contents)
@@ -58,6 +62,55 @@ def make_vcard_from_roster(contents):
 
     log.debug(f"title '{ title }' dr '{ dr }'")
 
+    nrows = ws.nrows
+    ncols = ws.ncols
+
+    title_row = 5   # origin zero
+
+    assert nrows >= title_row + 2   # must be at least 2 rows: title row and at least one person
+
+    # gather all the data
+    matrix = []
+    for index in range(title_row, nrows):
+        matrix.append( ws.row_values(index) )
+
+    # convert to object array
+    objects = spreadsheet_tools.matrix_to_object_array(matrix)
+
+    categories = [ f"DR{ dr_id }" ]
+
+    for o in objects:
+        s_name = o['Name']
+        s_cell = o['Cell phone']
+        s_email = o['Email']
+
+
+        last_name, _, first_name = s_name.partition(',')
+
+        log.debug(f"user { s_name } first { first_name } last { last_name }")
+
+        vcard = vobject.vCard()
+
+        vcard.add('n')
+        vcard.n.value  = vobject.vcard.Name(family=last_name, given=first_name)
+
+        vcard.add('fn')
+        vcard.fn.value = f"{ first_name } { last_name }"
+
+        if s_cell != None and s_cell != "":
+            vcard.add('tel')
+            vcard.tel.value = s_cell
+            vcard.tel.type_param = "CELL"
+
+        if s_email != None and s_email != "":
+            vcard.add('email')
+            vcard.email.value = s_email
+            vcard.email.type_param = 'INTERNET'
+
+        vcard.add('categories')
+        vcard.categories.value = categories
+
+        print(vcard.serialize(), file=fd)
 
 
 

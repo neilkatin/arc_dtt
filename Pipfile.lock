@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "a8345bad7b2a052ca0979c651701694b971d67edd0e2257333f18c07c391423b"
+            "sha256": "15ea23fb1758197fff88792fcdab92bde9853bfcc33028652d8fad127b5f2d06"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -24,7 +24,6 @@
             "version": "==1.4.4"
         },
         "backports.zoneinfo": {
-            "extras": [],
             "hashes": [
                 "sha256:17746bd546106fa389c51dbea67c8b7c8f0d14b5526a579ca6ccf5ed72c526cf",
                 "sha256:1b13e654a55cd45672cb54ed12148cd33628f672548f373963b0bff67b217328",
@@ -406,6 +405,13 @@
             ],
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4'",
             "version": "==1.26.6"
+        },
+        "vobject": {
+            "hashes": [
+                "sha256:96512aec74b90abb71f6b53898dd7fe47300cc940104c4f79148f0671f790101"
+            ],
+            "index": "pypi",
+            "version": "==0.9.6.1"
         },
         "w3lib": {
             "hashes": [

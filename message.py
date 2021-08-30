@@ -46,6 +46,11 @@ def main():
     for dr_id in args.dr_id:
         contents = fetch_dr_roster(config, dr_id)
 
+        filename = f"staff-roster-{ dr_id }.xls"
+        log.debug(f"saving roster to { filename }")
+        with open(filename, "wb") as fd:
+            fd.write(contents)
+
 
 
 def fetch_dr_roster(config, dr_id):

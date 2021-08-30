@@ -87,16 +87,14 @@ def main():
         # fetch from DTT
         session = web_session.get_session(config, dr_config)
 
-        # ZZZ: should validate session here, and re-login if it isn't working...
-        if 'DR_ID' not in config:
-            get_dr_list(config, session)
+        get_dr_list(config, dr_config, session)
 
-        log.debug(f"DR_ID { config.DR_ID } DR_NAME { config.DR_NAME }")
+        log.debug(f"DR_ID { dr }")
 
         # get people and vehicles from the DTT
-        vehicles = get_vehicles(config, args, session)
-        people = get_people(config, args, session)
-        agencies = get_agencies(config, args, session)
+        vehicles = get_vehicles(config, dr_config, args, session)
+        people = get_people(config, dr_config, args, session)
+        agencies = get_agencies(config, dr_config, args, session)
 
         # debuging only
         for row in vehicles:
@@ -168,6 +166,27 @@ def main():
                 item_name = f"DR{ dr_config.dr_id } { FILESTAMP } Vehicle Backup.xlsx"
                 store_report(config, account_mail, item_name, output_bytes)
 
+
+def get_dr_list(config, dr_config, session):
+    """ Get the list of DRs we have access to from the DTT """
+
+    url = config.DTT_URL + "Vehicles"
+
+    r = session.get(url)
+    r.raise_for_status()
+
+    codes = r.html.find('#DisasterCodes', first=True)
+
+    options = codes.find('option')
+
+    for option in options:
+        value = option.attrs['value']
+        text = option.text
+        log.debug(f"option value { value } text { text }")
+
+    # for now, while we only have access to one DR: pick the last value
+    dr_config.id = value
+    dr_config.name = text
 
 
 
@@ -1148,26 +1167,26 @@ def init_o365(config, token_filename=None):
 
     
 
-def get_people(config, args, session):
+def get_people(config, dr_config, args, session):
     """ Retrieve the people list from the DTT (as a json list) """
 
-    data = get_json(config, args, session, 'People/Details')
+    data = get_json(config, dr_config, args, session, 'People/Details')
     return data
 
 
-def get_vehicles(config, args, session):
+def get_vehicles(config, dr_config, args, session):
     """ Retrieve the vehicle list from the DTT (as a json list) """
 
-    data = get_json(config, args, session, 'Vehicles')
+    data = get_json(config, dr_config, args, session, 'Vehicles')
     return data
 
-def get_agencies(config, args, session):
+def get_agencies(config, dr_config, args, session):
     """ retrieve the current rental agencies for this DR
 
         return a dict keyed by the AgencyID
     """
 
-    data = get_json(config, args, session, 'Agencies', prefix='api/Disasters/')
+    data = get_json(config, dr_config, args, session, 'Agencies', prefix='api/Disasters/')
 
     # construct a dict keyed by AgencyID from the data array
     d = dict( (h['AgencyID'], h) for h in data )
@@ -1182,7 +1201,7 @@ def get_agencies(config, args, session):
 
 
 
-def get_json(config, args, session, api_type, prefix='api/Disaster/'):
+def get_json(config, dr_config, args, session, api_type, prefix='api/Disaster/'):
 
     file_name = f"cached_{ re.sub(r'/.*', '', api_type) }.json"
 
@@ -1196,7 +1215,7 @@ def get_json(config, args, session, api_type, prefix='api/Disaster/'):
 
     else:
 
-        url = config.DTT_URL + f"{ prefix }{ config.DR_ID }/" + api_type
+        url = config.DTT_URL + f"{ prefix }{ dr_config.id }/" + api_type
 
         r = session.get(url)
         r.raise_for_status()
@@ -1216,27 +1235,6 @@ def get_json(config, args, session, api_type, prefix='api/Disaster/'):
     #log.debug(f"Returned data\n{ json.dumps(data, indent=2, sort_keys=True) }")
 
     return data
-
-def get_dr_list(config, session):
-    """ Get the list of DRs we have access to from the DTT """
-
-    url = config.DTT_URL + "Vehicles"
-
-    r = session.get(url)
-    r.raise_for_status()
-
-    codes = r.html.find('#DisasterCodes', first=True)
-
-    options = codes.find('option')
-
-    for option in options:
-        value = option.attrs['value']
-        text = option.text
-        #log.debug(f"option value { value } text { text }")
-
-    # for now, while we only have access to one DR: pick the last value
-    config['DR_ID'] = value
-    config['DR_NAME'] = text
 
 
 def store_report(config, account, item_name, wb_bytes):
