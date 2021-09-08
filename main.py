@@ -142,7 +142,7 @@ def main():
         # group vehicle report
         if args.do_group:
             # generate the group report
-            output_bytes = make_group_report(config, dr_config, vehicles)
+            output_bytes = make_group_report(config, dr_config, vehicles, people)
             file_name = f"DR{ dr_config.dr_id } { FILESTAMP } Group Vehicle Report.xlsx"
 
             if args.store:
@@ -1187,7 +1187,10 @@ def get_people(config, dr_config, args, session):
     """ Retrieve the people list from the DTT (as a json list) """
 
     data = get_json(config, dr_config, args, session, 'People/Details')
-    return data
+
+    # construct a dict keyed by PersonID
+    d = dict( (d['PersonID'], d) for d in data )
+    return d
 
 
 def get_vehicles(config, dr_config, args, session):
@@ -1272,7 +1275,7 @@ def store_report(config, account, item_name, wb_bytes):
     log.debug(f"after upload: result { result }")
 
 
-def make_group_report(config, dr_config, vehicles):
+def make_group_report(config, dr_config, vehicles, people):
     """ make a workbook of all vehicles, arranged by GAPs """
 
     wb = openpyxl.Workbook()
@@ -1282,13 +1285,13 @@ def make_group_report(config, dr_config, vehicles):
     vehicles = sorted(vehicles, key=lambda x: vehicle_to_gap(x['Vehicle']))
 
     # add the master sheet
-    add_gap_sheet(wb, 'Master', vehicles)
+    add_gap_sheet(wb, 'Master', vehicles, people)
 
     gap_list = get_vehicle_gap_groups(vehicles)
 
     for group in gap_list:
         group_vehicles = filter_by_gap_group(group, vehicles)
-        add_gap_sheet(wb, group, group_vehicles)
+        add_gap_sheet(wb, group, group_vehicles, people)
 
     # serialize the workbook
     bufferview = workbook_to_buffer(wb)
@@ -1391,8 +1394,20 @@ def filter_by_gap_group(group, vehicles):
 
     return filter(lambda x: vehicle_to_group(x['Vehicle']) == group, vehicles)
 
+def get_people_column(people, pid, column):
+    # look up a person by id (from the vehicle row) and return the specified column
+    if pid in people:
+        person = people[pid]
+        if column in person:
+            return person[column]
+    else:
+        log.debug(f"could not find pid { pid } in people dict")
 
-def add_gap_sheet(wb, sheet_name, vehicles):
+    # we didn't find the value
+    return '' 
+
+
+def add_gap_sheet(wb, sheet_name, vehicles, people):
     """ make a new sheet with the specified vehicles """
 
     ws = wb.create_sheet(sheet_name)
@@ -1410,6 +1425,8 @@ def add_gap_sheet(wb, sheet_name, vehicles):
             'Lodging':      { 'width': 30, 'key': lambda x: x['CurrentDriverLodging'], },
             'Reservation':  { 'width': 15, 'key': lambda x: x['RentalAgreementReservationNumber'], },
             'Outprocessed': { 'width': 15, 'key': lambda x: "" if not x['OutProcessed'] else "OUTPROCESSED", },
+            'Cell Phone':   { 'width': 13, 'key': lambda x: get_people_column(people, x['CurrentDriverPersonId'], 'MobilePhone'), },
+            'Email':        { 'width': 20, 'key': lambda x: get_people_column(people, x['CurrentDriverPersonId'], 'Email'), },
         }
 
     row = 1
@@ -1480,7 +1497,7 @@ def do_status_messages(config, args, account, vehicles, people):
     #vehicle_to_driver = make_vehicle_index(vehicles, 'CurrentDriverPersonId')
 
     # make an index of person ids
-    id_to_person = dict( (p['PersonID'], p) for p in people )
+    id_to_person = people
 
     templates = gen_templates.init()
     date = datetime.datetime.now().strftime("%Y-%m-%d %H%M")
@@ -1582,7 +1599,7 @@ def do_status_messages(config, args, account, vehicles, people):
     # now do people without vehicles
 
     if args.do_no_car:
-        for i, person in enumerate(people):
+        for i, person in enumerate(people.values()):
             
             # ignore people that have vehicles
             if PERSON_HAS_VEHICLE in person:
