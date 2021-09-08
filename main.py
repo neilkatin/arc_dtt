@@ -791,7 +791,7 @@ dtt_to_avis_make_dict = {
         'Nissan': 'NISS',
         'Mazda': 'MAZD',
         'Subaru': 'SUBA',
-        'Volkswagon': 'VOLK',
+        'Volkswagen': 'VOLK',
         }
 dtt_to_avis_model_dict = {
         'Corolla': 'CRLA',
@@ -820,6 +820,17 @@ dtt_to_avis_model_dict = {
         'Legacy': 'LEGA',
         'Sonata': 'SONA',
         'Optima': 'OPTI',
+        'Accord': 'ACCO',
+        'Fusion': 'FUSI',
+        '3': '3SED',
+        'Jetta': 'JETT',
+        'Rogue': 'ROG2',
+        'Tacoma': 'TAC4',
+        'Mustang': 'MUST',
+        '4Runner': '4RUN',
+        'Charger': 'CHRT',
+        'Santa Fe': 'SANT',
+        'Pathfinder': 'PATH',
         }
 dtt_to_avis_color_dict = {
         'Silver': 'SIL',
@@ -946,7 +957,12 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
                     fill = FILL_YELLOW
                     log.debug(f"no agency match '{ addr_line }' / '{ agency_string }'")
 
-                    comment = Comment(f"DTT location is { agency['Name'] } / { agency_string }", COMMENT_AUTHOR, height=300, width=400)
+                    comment = Comment(
+                            f"DTT location is:\n"
+                            f"{ agency['Name'] }\n"
+                            f"{ agency['Address'] }\n"
+                            f"{ agency['City'] } { agency['State'] }{ agency['Zip'] }",
+                            COMMENT_AUTHOR, height=300, width=400)
 
                 mark_cell(ws, fill, spreadsheet_row, columns, 'Rental Loc Desc', comment=comment)
                 mark_cell(ws, fill, spreadsheet_row, columns, 'Address Line 1')

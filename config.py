@@ -112,7 +112,7 @@ class DRConfig:
         return f"dtt_cookies-{ self.dr_id }.txt"
 
 
-DRConfig('155', '22', 'DR155-22Log-Tra2@redcross.org', 'DR155-22Log-Tra2@redcross.org', 'dr155-22-staffing-reports@AmericanRedCross.onmicrosoft.com')
+DRConfig('155', '22', 'DR155-22Log-Tra2@redcross.org', 'DR155-22Log-Tra2@redcross.org', 'DR155-22Log-Tra2@redcross.org')
 DRConfig('204', '22', 'DR204-22Log-Tra2@redcross.org', 'DR204-22Log-Tra2@redcross.org', 'DR204-22Log-Tra1@redcross.org', reply_email='DR204-22Log-Tra1@redcross.org')
 DRConfig('225', '22', 'DR225-22Log-Tra2@redcross.org', 'DR225-22Log-Tra2@redcross.org', 'DR225-22Log-Tra1@redcross.org', reply_email='DR225-22Log-Tra1@redcross.org')
 DRConfig('234', '22', 'DR234-22Log-Tra2@redcross.org', 'DR234-22Log-Tra2@redcross.org', 'DR234-22Log-Tra1@redcross.org', reply_email='DR234-22Log-Tra1@redcross.org')
