@@ -16,7 +16,7 @@
     {% for row in vehicles %}
         {% set v = row['Vehicle'] %}
         <ul>
-            <li>Vehicle id: {{ v.KeyNumber }}</li>
+            <li>Vehicle id: {{ v.KeyNumber }} (called "MVA" on the key tag on Avis vehicles)</li>
             <li>License plate: {{ v.PlateState }} {{ v.Plate }}
         </ul>
     {% endfor %}
