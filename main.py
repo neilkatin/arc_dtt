@@ -112,7 +112,7 @@ def main():
 
 
         if args.do_car or args.do_no_car:
-            do_status_messages(config, args, account_mail, vehicles, people)
+            do_status_messages(dr_config, args, account_mail, vehicles, people)
 
 
         # avis report
@@ -1491,7 +1491,7 @@ def add_gap_sheet(wb, sheet_name, vehicles, people):
     else:
         log.debug(f"Ignoring table for ZZZ-No-Gap sheet")
 
-def do_status_messages(config, args, account, vehicles, people):
+def do_status_messages(dr_config, args, account, vehicles, people):
 
 
     #vehicle_to_driver = make_vehicle_index(vehicles, 'CurrentDriverPersonId')
@@ -1567,17 +1567,17 @@ def do_status_messages(config, args, account, vehicles, people):
                     'last_name': last_name,
                     'email': email,
                     'vehicles': l,
-                    'reply_email': config.REPLY_EMAIL,
+                    'reply_email': dr_config.reply_email,
                     'date': date,
                     }
 
             body = t_vehicle.render(context)
 
-            log.debug(f"body { body }")
+            #log.debug(f"body { body }")
 
             m = account.new_message()
             if args.test_send:
-                m.bcc.add(config.EMAIL_BCC)
+                m.bcc.add(dr_config.email_bcc)
             if args.send:
                 m.to.add(email)
 
