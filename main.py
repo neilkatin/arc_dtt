@@ -542,6 +542,8 @@ def cleanup_v_field(vehicle, field_name):
     if value is None:
         return None
 
+    value = value.strip()
+
     if field_name == 'RentalAgreementNumber':
         # rental agreements always start with 'U'; add it if not present
         if value[0] != 'U':
@@ -579,9 +581,9 @@ def make_vehicle_index(vehicles, first_field, second_field=None, reservation=Fal
             second = vehicle[second_field]
             if second is None:
                 continue
-            key = key + " " + vehicle[second_field]
+            key = key + " " + second.strip()
 
-        #log.debug(f"make_vehicle_index: key { key.upper() }")
+        #log.debug(f"make_vehicle_index: key '{ key.upper() }'")
         result[key.upper()] = row
 
     return result
@@ -650,7 +652,10 @@ def add_missing_avis_vehicles(vehicles, avis_all, avis_open, closed):
         ra = cleanup_v_field(vehicle, 'RentalAgreementNumber')
         res = cleanup_v_field(vehicle, 'RentalAgreementReservationNumber')
         key = cleanup_v_field(vehicle, 'KeyNumber')
-        plate = f"{ vehicle['PlateState'] } { vehicle['Plate'] }"
+        plate = f"{ vehicle['PlateState'] } { vehicle['Plate'].strip() }"
+
+        if vehicle['Plate'] == "812KBK":
+            log.debug(f"saw vehicle 812KBK")
 
         if ra in i_ra or res in i_res or key in i_key or plate in i_plate:
 
@@ -879,6 +884,27 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
 
     #log.debug(f"make translation dict: { dtt_to_avis_model_dict }")
 
+    def mark_cell_wrapper(vid, field_name, spreadsheet_row, columns, column_name):
+        if vid is None:
+            fill = FILL_RED
+            comment = None
+        else:
+            fill = FILL_YELLOW
+            vrow = vid_dict[vid]
+            veh = vrow['Vehicle']
+            veh_value = veh[field_name]
+
+            comment = Comment(
+                    f"DTT id { vid }\n"
+                    f"Driver { veh['CurrentDriverName'] }\n"
+                    f"Key { veh['KeyNumber'] }\n"
+                    f"Reservation { veh['RentalAgreementReservationNumber'] }\n"
+                    f"Agreement { veh['RentalAgreementNumber'] }\n"
+                    f"Plate { veh['PlateState'] } { veh['Plate'] }\n"
+                    , COMMENT_AUTHOR, height=300, width=400)
+
+        mark_cell(ws, fill, spreadsheet_row, columns, column_name, comment=comment)
+
     spreadsheet_row = 1
     for row in avis:
         spreadsheet_row += 1
@@ -888,6 +914,9 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
         key = row['MVA No']
         plate = row['License Plate State Code'] + ' ' + row['License Plate Number']
         cost_control = row['Cost Control No']
+
+        if plate == "WA BOS5423":
+            log.debug(f"saw avis plate { plate }")
 
         if cost_control == 'MISSING':
             # this is a synthetic row created from the DTT, not AVIS; don't bother matching
@@ -1022,11 +1051,12 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
 
         else:
             # else color yellow if value is found; red if value not found
-            mark_cell(ws, FILL_RED if ra_id is None else FILL_YELLOW, spreadsheet_row, columns, 'Rental Agreement No')
-            mark_cell(ws, FILL_RED if res_id is None else FILL_YELLOW, spreadsheet_row, columns, 'Reservation No')
-            mark_cell(ws, FILL_RED if key_id is None else FILL_YELLOW, spreadsheet_row, columns, 'MVA No')
+            mark_cell_wrapper(ra_id, 'RentalAgreementNumber', spreadsheet_row, columns, 'Rental Agreement No')
+            mark_cell_wrapper(res_id, 'RentalAgreementReservationNumber', spreadsheet_row, columns, 'Reservation No')
+            mark_cell_wrapper(key_id, 'KeyNumber', spreadsheet_row, columns, 'MVA No')
+            mark_cell_wrapper(plate_id, 'Plate', spreadsheet_row, columns, 'License Plate Number')
+
             mark_cell(ws, FILL_RED if plate_id is None else FILL_YELLOW, spreadsheet_row, columns, 'License Plate State Code')
-            mark_cell(ws, FILL_RED if plate_id is None else FILL_YELLOW, spreadsheet_row, columns, 'License Plate Number')
 
         if avis_source == AVIS_SOURCE_OPEN_ALL:
             mark_cell(ws, FILL_YELLOW, spreadsheet_row, columns, 'Cost Control No')
