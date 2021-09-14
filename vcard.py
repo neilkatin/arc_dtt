@@ -45,37 +45,16 @@ def main():
 
     for dr_id in args.dr_id:
         contents = message.fetch_dr_roster(config, dr_id)
+        objects = message.convert_roster_to_objects(contents)
 
         filename = f"{ FILESTAMP }-roster.vcf"
         with open(filename, "w") as fd:
-            make_vcard_from_roster(contents, fd, dr_id)
+            make_vcard_from_roster(objects, fd, dr_id)
 
 
-def make_vcard_from_roster(contents, fd, dr_id):
+def make_vcard_from_roster(objects, fd, dr_id):
     """ produce a vcard file from the roster """
 
-    wb = xlrd.open_workbook(file_contents=contents)
-    ws = wb.sheet_by_index(0)
-
-    title = ws.cell_value(0, 0)
-    dr = ws.cell_value(2, 0)
-
-    log.debug(f"title '{ title }' dr '{ dr }'")
-
-    nrows = ws.nrows
-    ncols = ws.ncols
-
-    title_row = 5   # origin zero
-
-    assert nrows >= title_row + 2   # must be at least 2 rows: title row and at least one person
-
-    # gather all the data
-    matrix = []
-    for index in range(title_row, nrows):
-        matrix.append( ws.row_values(index) )
-
-    # convert to object array
-    objects = spreadsheet_tools.matrix_to_object_array(matrix)
 
     categories = [ f"DR{ dr_id }" ]
 

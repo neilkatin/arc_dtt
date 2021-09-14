@@ -25,6 +25,7 @@ from neil_tools import gen_templates
 
 import config as config_static
 import web_session
+import message
 
 import arc_o365
 #from O365_local.excel import WorkBook as o365_WorkBook
@@ -112,7 +113,10 @@ def main():
 
 
         if args.do_car or args.do_no_car:
-            do_status_messages(dr_config, args, account_mail, vehicles, people)
+            roster_contents = message.fetch_dr_roster(config, dr)
+            roster = message.convert_roster_to_objects(roster_contents)
+
+            do_status_messages(dr_config, args, account_mail, vehicles, people, roster)
 
 
         # avis report
@@ -1521,7 +1525,32 @@ def add_gap_sheet(wb, sheet_name, vehicles, people):
     else:
         log.debug(f"Ignoring table for ZZZ-No-Gap sheet")
 
-def do_status_messages(dr_config, args, account, vehicles, people):
+def do_status_messages(dr_config, args, account, vehicles, people, roster):
+
+    vehicle_code_map = {
+            'A': 'ERV',
+            'B': 'Box Truck',
+            'C': 'Chapter Vehicle',
+            'D': 'Delivery Vehicle',
+            'R': 'Rental Vehicle',
+            'L': 'Loaned Vehicle',
+            'POV': 'Personal Vehicle',
+            }
+    def vehicle_category_code_to_string(code):
+        #string = vehicle_code_map.get(code)
+        #log.debug(f"vehicle_category: code '{ code }' string '{ string }'")
+        return vehicle_code_map.get(code)
+
+    #roster_by_vc = spreadsheet_tools.make_index(roster, "Mem#")
+    key_name = 'Mem#'
+
+    roster_by_vc = dict(
+            map(lambda d: (str(int(d[key_name])), d),
+                filter(lambda d: key_name in d, roster)
+                )
+            )
+    log.debug(f"roster_by_vc: keys { [ roster_by_vc.keys() ] }")
+
 
 
     #vehicle_to_driver = make_vehicle_index(vehicles, 'CurrentDriverPersonId')
@@ -1552,8 +1581,8 @@ def do_status_messages(dr_config, args, account, vehicles, people):
             continue
 
         # ZZZ: just do avis for now, because others are less well checked
-        if vehicle['Vendor'] != 'Avis':
-            continue
+        #if vehicle['Vendor'] != 'Avis':
+        #    continue
 
 
         pool = motor_pool_re.match(driver)
@@ -1571,6 +1600,7 @@ def do_status_messages(dr_config, args, account, vehicles, people):
 
         # mark this person as having a vehicle
         person[PERSON_HAS_VEHICLE] = True
+        #log.debug(f"marking person { driver_id } / { driver } as having a vehicle")
 
         # mark that person as having this vehicle
         if driver_id not in person_to_vehicle:
@@ -1579,6 +1609,7 @@ def do_status_messages(dr_config, args, account, vehicles, people):
 
     templates = gen_templates.init()
     t_vehicle = templates.get_template("mail_vehicle.html")
+    t_no_veh = templates.get_template("mail_no_veh.html")
 
     # now generate the emails
     if args.do_car:
@@ -1590,7 +1621,7 @@ def do_status_messages(dr_config, args, account, vehicles, people):
             last_name = person['LastName']
             email = person['Email']
 
-            log.debug(f"person { first_name } { last_name } has { len(l) } vehicles")
+            log.debug(f"person { first_name } { last_name } has { len(l) }")
 
             context = {
                     'first_name': first_name,
@@ -1599,28 +1630,30 @@ def do_status_messages(dr_config, args, account, vehicles, people):
                     'vehicles': l,
                     'reply_email': dr_config.reply_email,
                     'date': date,
+                    'vehicle_category_code_to_string': vehicle_category_code_to_string,
                     }
 
             body = t_vehicle.render(context)
 
             #log.debug(f"body { body }")
 
-            m = account.new_message()
-            if args.test_send:
-                m.bcc.add(dr_config.email_bcc)
-            if args.send:
-                m.to.add(email)
+            if account is not None:
+                m = account.new_message()
+                if args.test_send:
+                    m.bcc.add(dr_config.email_bcc)
+                if args.send:
+                    m.to.add(email)
 
-            m.subject = f"Vehicle Status - { date } - { first_name } { last_name }"
-            m.body = body
+                m.subject = f"Vehicle Status - { date } - { first_name } { last_name }"
+                m.body = body
 
-            if args.test_send or args.send:
-                m.send()
+                if args.test_send or args.send:
+                    m.send()
 
-            
+                
             # debug only
             count += 1
-            if args.mail_limit and count >= 5:
+            if args.mail_limit and count >= args.mail_limit:
                 break
 
 
@@ -1629,28 +1662,69 @@ def do_status_messages(dr_config, args, account, vehicles, people):
     # now do people without vehicles
 
     if args.do_no_car:
+        count = 0
         for i, person in enumerate(people.values()):
             
+            first_name = person['FirstName']
+            last_name = person['LastName']
+            email = person['Email']
+
             # ignore people that have vehicles
             if PERSON_HAS_VEHICLE in person:
+                #log.debug(f"ignoring person { first_name } { last_name }: has a vehicle")
                 continue
 
             status = person['Status']
 
             # don't hassle folks who are off the job
-            if status == 'Out Process':
+            if status != 'Checked In':
+                #log.debug(f"ignoring person { first_name } { last_name }: status { status } not 'Checked In'")
+                continue
+
+            # checked in status is often wrong; cross check against the most recent VC roster
+            vc_num = person['VC']
+
+            if vc_num not in roster_by_vc:
+                # assume they are no longer on the DR and ignore them
+                #log.debug(f"ignoring person { first_name } { last_name }: not in VC roster: vc_num '{ vc_num }'")
                 continue
 
             first_name = person['FirstName']
             last_name = person['LastName']
             email = person['Email']
 
-            log.debug(f"({ i }) person { first_name } { last_name } { status } has no vehicles")
+            log.debug(f"({ i }) person { first_name } { last_name } { person['PersonID'] } { status } has no vehicles")
 
-            #if i > 10:
-            #    break
+            context = {
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'email': email,
+                    'reply_email': dr_config.reply_email,
+                    'date': date,
+                    }
 
+            body = t_no_veh.render(context)
 
+            #log.debug(f"body { body }")
+
+            if account is not None:
+                m = account.new_message()
+                if args.test_send:
+                    m.bcc.add(dr_config.email_bcc)
+                if args.send:
+                    m.to.add(email)
+
+                m.subject = f"Vehicle Status - { date } - { first_name } { last_name }"
+                m.body = body
+
+                if args.test_send or args.send:
+                    m.send()
+
+            
+            # debug only
+            count += 1
+            if args.mail_limit and count >= args.mail_limit:
+                break
 
 
 
@@ -1668,7 +1742,7 @@ def parse_args():
     parser.add_argument("--send", help="Send messages to the actual intended recipients", action="store_true")
     parser.add_argument("--save", help="Keep a copy of the generated report", action="store_true")
     parser.add_argument("--test-send", help="Add the test email account to message recipients", action="store_true")
-    parser.add_argument("--mail-limit", help="debug flag to limit # of emails sent", action="store_true")
+    parser.add_argument("--mail-limit", help="max number of emails to send (default: 5)", nargs="?", const=5, type=int)
     parser.add_argument("--dr-id", help="the name of the DR (like 155-22)", required=True, action="append")
 
     group = parser.add_mutually_exclusive_group(required=False)

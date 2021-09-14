@@ -15,14 +15,26 @@
 
     {% for row in vehicles %}
         {% set v = row['Vehicle'] %}
+        {% set code = v['VehicleCategoryCode'] %}
+	{% set code_string = vehicle_category_code_to_string(code) %}
         <ul>
-            <li>Vehicle id: {{ v.KeyNumber }} (called "MVA" on the key tag on Avis vehicles)</li>
+	    {% if code_string is not none %}
+            <li>Vehicle category: {{ code_string }}</li>
+	    {% endif %}
+	    {% if v.Vendor is not none %}
+            <li>Vendor: {{ v.Vendor }}</li>
+	    {% endif %}
+            <li>Vehicle id: {{ v.KeyNumber }}
+	    {% if v.Vendor == 'Avis' %}
+	        (called "MVA" on the key tag)
+	    {% endif %}
+	    </li>
             <li>License plate: {{ v.PlateState }} {{ v.Plate }}
         </ul>
     {% endfor %}
 
     <p>
-    If all that is correct: you don't need to do anything.  If its wrong: please email
+    If all that is correct: YOU DON'T NEED TO DO ANYTHING.  If its wrong: please email
     <a href='mailto:{{ reply_email }}'>{{ reply_email }}</a>.
     </p>
 

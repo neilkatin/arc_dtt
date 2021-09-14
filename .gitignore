@@ -4,3 +4,4 @@ dtt_cookies*.txt
 o365_token*.txt
 *.xlsx
 *.json
+*.vcf

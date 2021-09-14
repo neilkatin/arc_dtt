@@ -12,8 +12,10 @@ import zipfile
 import base64
 
 import requests
+import xlrd
 
 import neil_tools
+import neil_tools.spreadsheet_tools as spreadsheet_tools
 
 import config as config_static
 
@@ -64,6 +66,27 @@ def fetch_dr_roster(config, dr_id):
     contents = search_mail(account, config.PROGRAM_EMAIL, message_match_string, attach_match_re)
     return contents
 
+def convert_roster_to_objects(contents):
+
+    wb = xlrd.open_workbook(file_contents=contents)
+    ws = wb.sheet_by_index(0)
+
+    nrows = ws.nrows
+    ncols = ws.ncols
+
+    title_row = 5
+
+    assert nrows >= title_row + 2   # must be at least 2 rows: title row and at least one data entry
+
+    # gather all the data
+    matrix = []
+    for index in range(title_row, nrows):
+        matrix.append( ws.row_values(index) )
+
+    objects = spreadsheet_tools.matrix_to_object_array(matrix)
+
+    return objects
+
 
 def search_mail(account, mailbox_email, message_match_string, attach_match_re):
     mailbox = account.mailbox(resource=mailbox_email)
@@ -77,6 +100,10 @@ def search_mail(account, mailbox_email, message_match_string, attach_match_re):
 
     messages = mailbox.get_messages(query=q, limit=1, download_attachments=False)
     message = next(messages, None)
+
+    if message is None:
+        log.error(f"Failed to read any messages that match { q }")
+        return None
 
     log.debug(f"message { message } sent { message.sent }")
 
