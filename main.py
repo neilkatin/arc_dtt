@@ -1544,14 +1544,12 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster):
     #roster_by_vc = spreadsheet_tools.make_index(roster, "Mem#")
     key_name = 'Mem#'
 
+    # construct a dict of roster entries, keyed by VC member id; convert member_id index from float to string
     roster_by_vc = dict(
             map(lambda d: (str(int(d[key_name])), d),
                 filter(lambda d: key_name in d, roster)
                 )
             )
-    log.debug(f"roster_by_vc: keys { [ roster_by_vc.keys() ] }")
-
-
 
     #vehicle_to_driver = make_vehicle_index(vehicles, 'CurrentDriverPersonId')
 
@@ -1657,6 +1655,7 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster):
                 break
 
 
+        log.debug(f"found { count } people with cars")
 
 
     # now do people without vehicles
@@ -1689,9 +1688,12 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster):
                 #log.debug(f"ignoring person { first_name } { last_name }: not in VC roster: vc_num '{ vc_num }'")
                 continue
 
-            first_name = person['FirstName']
-            last_name = person['LastName']
-            email = person['Email']
+            vc_entry = roster_by_vc[vc_num]
+            loc_type = vc_entry['Location type']
+
+            if loc_type == 'Virtual':
+                #log.debug(f"ignoring person { first_name } { last_name }: location type is virtual")
+                continue
 
             log.debug(f"({ i }) person { first_name } { last_name } { person['PersonID'] } { status } has no vehicles")
 
@@ -1725,6 +1727,8 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster):
             count += 1
             if args.mail_limit and count >= args.mail_limit:
                 break
+
+        log.debug(f"found { count } people without cars")
 
 
 

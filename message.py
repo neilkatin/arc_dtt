@@ -105,14 +105,14 @@ def search_mail(account, mailbox_email, message_match_string, attach_match_re):
         log.error(f"Failed to read any messages that match { q }")
         return None
 
-    log.debug(f"message { message } sent { message.sent }")
+    #log.debug(f"message { message } sent { message.sent }")
 
     message.attachments.download_attachments()
     attachments = message.attachments
-    log.debug(f"attachments len: { len(attachments) }")
+    #log.debug(f"attachments len: { len(attachments) }")
 
     for attachment in attachments:
-        log.debug(f"attachment { attachment } size { attachment.size }")
+        #log.debug(f"attachment { attachment } size { attachment.size }")
         if attach_match_re.search(attachment.name) != None:
             content = base64.b64decode(attachment.content)
             log.debug(f"found a match: { attachment.name } size { attachment.size } len { len(content) }")
