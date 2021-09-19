@@ -26,6 +26,7 @@ from neil_tools import gen_templates
 import config as config_static
 import web_session
 import message
+import veh_stats
 
 import arc_o365
 #from O365_local.excel import WorkBook as o365_WorkBook
@@ -58,11 +59,17 @@ FILL_BLUE = openpyxl.styles.PatternFill(fgColor="5BB1CD", fill_type = "solid")
 FILL_CYAN = openpyxl.styles.PatternFill(fgColor="A0FFFF", fill_type = "solid")
 
 # flag in person object that they have a vehicle
-PERSON_HAS_VEHICLE = '__HAS_VEHICLE__'
+PERSON_VEHICLES = '__PERSON_VEHICLES__'
+PERSON_REF = '__PERSON_REF__'
+ROSTER_REF = '__ROSTER_REF__'
+DISTRICT = '__DISTRICT__'
+TnM = '__TnM__'
 
 COMMENT_AUTHOR = "Avis Report Reconciler Program"
 
 NO_GAP_GROUP = 'ZZZ-No-GAP'
+MASTER = 'Master'
+
 
 def main():
     args = parse_args()
@@ -80,6 +87,8 @@ def main():
 
     if errors:
         return
+
+    roster = None
 
     account_avis = None
     for dr in args.dr_id:
@@ -113,8 +122,8 @@ def main():
 
 
         if args.do_car or args.do_no_car:
-            roster_contents = message.fetch_dr_roster(config, dr)
-            roster = message.convert_roster_to_objects(roster_contents)
+            if not roster:
+                roster = get_roster(config, dr, vehicles, people)
 
             do_status_messages(dr_config, args, account_mail, vehicles, people, roster)
 
@@ -145,8 +154,11 @@ def main():
 
         # group vehicle report
         if args.do_group:
+            if not roster:
+                roster = get_roster(config, dr, vehicles, people)
+
             # generate the group report
-            output_bytes = make_group_report(config, dr_config, vehicles, people)
+            output_bytes = make_group_report(config, dr_config, args, vehicles, people, roster)
             file_name = f"DR{ dr_config.dr_id } { FILESTAMP } Group Vehicle Report.xlsx"
 
             if args.store:
@@ -169,6 +181,24 @@ def main():
             if args.store:
                 item_name = f"DR{ dr_config.dr_id } { FILESTAMP } Vehicle Backup.xlsx"
                 store_report(config, account_mail, item_name, output_bytes)
+
+
+
+def get_roster(config, dr, vehicles, people):
+    roster_contents = message.fetch_dr_roster(config, dr)
+    roster = message.convert_roster_to_objects(roster_contents)
+
+    key_name = 'Mem#'
+
+    # construct a dict of roster entries, keyed by VC member id; convert member_id index from float to string
+    roster_by_vc = dict(
+            map(lambda d: (str(int(d[key_name])), d),
+                filter(lambda d: key_name in d, roster)
+                )
+            )
+
+    preprocess_people_roster(vehicles, people, roster_by_vc)
+    return roster_by_vc
 
 
 def get_dr_list(config, dr_config, session):
@@ -343,7 +373,7 @@ def fetch_avis(config, account):
 
     children = fy21.get_items()
 
-    rental_re = re.compile('^ARC Open Rentals\s*-?\s*(\d{1,2})-(\d{1,2})-(\d{2,4})\.xlsx$')
+    rental_re = re.compile(r'^ARC Open Rentals\s*-?\s*(\d{1,2})-(\d{1,2})-(\d{2,4})\.xlsx$')
     count = 0
     mismatch = 0
     newest_file_date = None
@@ -467,7 +497,7 @@ def copy_avis_sheet(ws, columns, title, rows):
             col += 1
 
     # now add the data
-    time_regex = re.compile('(\d{2}):(\d{2}):(\d{2})')
+    time_regex = re.compile(r'(\d{2}):(\d{2}):(\d{2})')
     row = 1
     for row_data in rows:
         row += 1
@@ -884,7 +914,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
 
     #log.debug(f"plate keys: { v_plate.keys() }")
 
-    multispace_re = re.compile('\s+')
+    multispace_re = re.compile(r'\s+')
 
     #log.debug(f"make translation dict: { dtt_to_avis_model_dict }")
 
@@ -1188,7 +1218,7 @@ def read_avis_sheet(dr_config, sheet):
     # 98, 098, DR098, DR098-21, DR098-2021, 098-21, etc...
     dr_num = dr_config.dr_num
     dr_num = dr_num.lstrip('0')
-    dr_regex = re.compile(f"(dr)?\s*0*{ dr_num }(-(20)?{ dr_config.dr_year })?", flags=re.IGNORECASE)
+    dr_regex = re.compile(r"(dr)?\s*0*" f"{ dr_num }" r"(-(20)?" f"{ dr_config.dr_year })?", flags=re.IGNORECASE)
 
     #avis_dr = list(filter(lambda x: dr_regex.match(x), avis_all))
     f_result = filter(lambda row: dr_regex.match(row[dr_column]), avis_all)
@@ -1309,7 +1339,7 @@ def store_report(config, account, item_name, wb_bytes):
     log.debug(f"after upload: result { result }")
 
 
-def make_group_report(config, dr_config, vehicles, people):
+def make_group_report(config, dr_config, args, vehicles, people, roster):
     """ make a workbook of all vehicles, arranged by GAPs """
 
     wb = openpyxl.Workbook()
@@ -1319,13 +1349,25 @@ def make_group_report(config, dr_config, vehicles, people):
     vehicles = sorted(vehicles, key=lambda x: vehicle_to_gap(x['Vehicle']))
 
     # add the master sheet
-    add_gap_sheet(wb, 'Master', vehicles, people)
+    add_gap_sheet(wb, MASTER, vehicles, people, roster, activity=False)
 
-    gap_list = get_vehicle_gap_groups(vehicles)
+    gap_list, district_list = get_vehicle_gap_groups(vehicles)
+
+    #log.debug(f"district_list: { district_list }")
 
     for group in gap_list:
         group_vehicles = filter_by_gap_group(group, vehicles)
-        add_gap_sheet(wb, group, group_vehicles, people)
+        log.debug(f"make_group_report: group { group } # veh { len(list(group_vehicles)) }")
+        add_gap_sheet(wb, group, group_vehicles, people, roster, activity=True)
+
+    #if len(district_list) > 1:
+    #    for district in district_list:
+    #        district_vehicles = filter_by_district(district, vehicles)
+    #        add_gap_sheet(wb, district, district_vehicles, people, roster)
+
+    #if args.stats:
+    #    # this is not working well yet
+    #    veh_stats.compute_stats(wb, vehicles, people, roster, district_list)
 
     # serialize the workbook
     bufferview = workbook_to_buffer(wb)
@@ -1333,9 +1375,10 @@ def make_group_report(config, dr_config, vehicles, people):
     return bufferview
 
 
-gap_to_group_re = re.compile('^([A-Z]+)')
-motor_pool_re = re.compile('^Motor Pool \(([^\)]*)\)$')
-def vehicle_to_group(vehicle):
+gap_to_group_re = re.compile('^([A-Z]+)/')
+gap_to_activity_re = re.compile('^([A-Z]+/[A-Z]*)/')
+motor_pool_re = re.compile(r'^Motor Pool \(([^\)]*)\)$')
+def vehicle_to_group(vehicle, activity=False):
     """ turn a Gap (Group/Activity/Position) name into just the Group portion """
 
     gap = vehicle['GAP']
@@ -1348,7 +1391,11 @@ def vehicle_to_group(vehicle):
     if pool is not None:
         return pool
 
-    group = gap_to_group_re.match(gap)
+    if activity:
+        group = gap_to_activity_re.match(gap)
+    else:
+        group = gap_to_group_re.match(gap)
+
     if group is not None:
         group_name = group.group(1)
         #log.debug(f"Found a group '{ group_name }'")
@@ -1396,14 +1443,17 @@ def get_vehicle_gap_groups(vehicles):
     group_re = re.compile('^([A-Z]+)')
 
     groups = {}
+    districts = {}
 
-    for vehicle in vehicles:
+    for row in vehicles:
 
-        if vehicle['Status'] != 'Active':
+        if row['Status'] != 'Active':
             continue
 
-        gap = vehicle['Vehicle']['GAP']
-        group = vehicle_to_group(vehicle['Vehicle'])
+        vehicle = row['Vehicle']
+
+        gap = vehicle['GAP']
+        group = vehicle_to_group(vehicle)
 
         if group is None:
             if gap != '':
@@ -1417,16 +1467,34 @@ def get_vehicle_gap_groups(vehicles):
             #log.debug(f"Adding group { group } from gap { gap }")
             groups[group] = True
 
+        if DISTRICT in vehicle:
+            district = vehicle[DISTRICT]
+            districts[district] = True
+
+
     group_list = sorted(groups.keys())
     #log.debug(f"group_list { group_list }")
-    return group_list
+    return group_list, list(districts.keys())
 
 
+
+def filter_by_district(district, vehicles):
+    """ only return vehicles in the given district """
+
+    results = []
+    for row in vehicles:
+        veh = row['Vehicle']
+
+        v_district = veh.get(DISTRICT)
+        if v_district == district:
+            results.append(row)
+
+    return results
 
 def filter_by_gap_group(group, vehicles):
     """ only return the vehicles whos GAP starts with the group """
 
-    return filter(lambda x: vehicle_to_group(x['Vehicle']) == group, vehicles)
+    return list(filter(lambda x: vehicle_to_group(x['Vehicle']) == group, vehicles))
 
 def get_people_column(people, pid, column):
     # look up a person by id (from the vehicle row) and return the specified column
@@ -1435,14 +1503,20 @@ def get_people_column(people, pid, column):
         if column in person:
             return person[column]
     else:
-        log.debug(f"could not find pid { pid } in people dict")
+        if pid != None:
+            log.debug(f"could not find pid { pid } in people dict")
 
     # we didn't find the value
     return '' 
 
 
-def add_gap_sheet(wb, sheet_name, vehicles, people):
+def add_gap_sheet(wb, sheet_name, vehicles, people, roster, activity=False):
     """ make a new sheet with the specified vehicles """
+
+    log.debug(f"processing sheet '{ sheet_name }' activity { activity }")
+    if sheet_name == '':
+        sheet_name = "BLANK"
+
 
     ws = wb.create_sheet(sheet_name)
 
@@ -1477,6 +1551,10 @@ def add_gap_sheet(wb, sheet_name, vehicles, people):
         else:
             ws.column_dimensions[col_letter].auto_size = True
 
+    ws.freeze_panes = 'C2'
+
+    seen_groups = {}
+    seen_groups['ALL' if sheet_name == MASTER else sheet_name] = True
     row = 1
     previous_group = None
     for vehicle in vehicles:
@@ -1490,7 +1568,10 @@ def add_gap_sheet(wb, sheet_name, vehicles, people):
         col = 0
 
         row_vehicle = vehicle['Vehicle']
-        group = vehicle_to_group(row_vehicle)
+        group = vehicle_to_group(row_vehicle, activity=activity)
+        if group not in seen_groups:
+            log.debug(f"seen new group: '{ group }'")
+        seen_groups[group] = True
 
         # leave a blank row when the group changes
         if group != previous_group:
@@ -1515,7 +1596,10 @@ def add_gap_sheet(wb, sheet_name, vehicles, people):
 
     # ZZZ: horrible hack; for some reason the no-gap table makes excel unhappy; I haven't been
     # able to figure out why, so I'm just not adding a table for that sheet
-    if sheet_name != 'ZZZ-No-GAP':
+    if sheet_name != NO_GAP_GROUP:
+
+        # table names can't have spaces
+        sheet_name = re.sub(' ', '_', sheet_name)
 
         last_col_letter = openpyxl.utils.get_column_letter(col)
         table_ref = f"A1:{ last_col_letter }{ row }"
@@ -1525,43 +1609,44 @@ def add_gap_sheet(wb, sheet_name, vehicles, people):
     else:
         log.debug(f"Ignoring table for ZZZ-No-Gap sheet")
 
-def do_status_messages(dr_config, args, account, vehicles, people, roster):
+    # now do stats for the groups
+    total_vehicles = 0
+    stat_results = []
+    for g in seen_groups.keys():
+        roster_count, vehicle_count = veh_stats.compute_stats(vehicles, roster, g)
+        total_vehicles += vehicle_count
+        stat_results.append({ 'group': g, 'roster': roster_count, 'vehicle': vehicle_count })
 
-    vehicle_code_map = {
-            'A': 'ERV',
-            'B': 'Box Truck',
-            'C': 'Chapter Vehicle',
-            'D': 'Delivery Vehicle',
-            'R': 'Rental Vehicle',
-            'L': 'Loaned Vehicle',
-            'POV': 'Personal Vehicle',
-            }
-    def vehicle_category_code_to_string(code):
-        #string = vehicle_code_map.get(code)
-        #log.debug(f"vehicle_category: code '{ code }' string '{ string }'")
-        return vehicle_code_map.get(code)
+    if total_vehicles != 0:
+        row += 2
+        ws.cell(row=row, column=1, value="Vehicle Statistics")
+        row += 1
+        ws.cell(row=row, column=1, value="GAP")
+        ws.cell(row=row, column=2, value="# MDA")
+        ws.cell(row=row, column=3, value="Rentals")
+        ws.cell(row=row, column=4, value="Ratio").number_format = "#,###.00"
+        row += 1
 
-    #roster_by_vc = spreadsheet_tools.make_index(roster, "Mem#")
-    key_name = 'Mem#'
+        for stat in stat_results:
+            roster_count = stat['roster']
+            vehicle_count = stat['vehicle']
 
-    # construct a dict of roster entries, keyed by VC member id; convert member_id index from float to string
-    roster_by_vc = dict(
-            map(lambda d: (str(int(d[key_name])), d),
-                filter(lambda d: key_name in d, roster)
-                )
-            )
+            if vehicle_count == 0:
+                continue
 
-    #vehicle_to_driver = make_vehicle_index(vehicles, 'CurrentDriverPersonId')
+            ratio = roster_count / vehicle_count
 
-    # make an index of person ids
-    id_to_person = people
-
-    templates = gen_templates.init()
-    date = datetime.datetime.now().strftime("%Y-%m-%d %H%M")
+            ws.cell(row=row, column=1, value=stat['group'])
+            ws.cell(row=row, column=2, value=roster_count)
+            ws.cell(row=row, column=3, value=vehicle_count)
+            ws.cell(row=row, column=4, value=ratio).number_format = "#,###.00"
+            row += 1
 
 
-    # group vehicles by who owns them
-    person_to_vehicle = {}
+def preprocess_people_roster(vehicles, people, roster_by_vc):
+    """ mark all persons who have vehicles, and link vehicle to people and roster
+        entries (if they exist)
+    """
 
     for row in vehicles:
 
@@ -1578,32 +1663,70 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster):
             # no driver assigned yet
             continue
 
-        # ZZZ: just do avis for now, because others are less well checked
-        #if vehicle['Vendor'] != 'Avis':
-        #    continue
-
-
         pool = motor_pool_re.match(driver)
         if pool is not None:
             # pool vehicle; don't bother messaging
             continue
 
 
-        if driver_id not in id_to_person:
+        if driver_id not in people:
             # assumption is we should always be able to find a driver
             log.error(f"Could not find driver_id { driver_id } in person list ({ vehicle['CurrentDriverNameAndMemberNo'] })")
             continue
 
-        person = id_to_person[driver_id]
+        person = people[driver_id]
+        vehicle[PERSON_REF] = person
 
         # mark this person as having a vehicle
-        person[PERSON_HAS_VEHICLE] = True
+        if PERSON_VEHICLES not in person:
+            person[PERSON_VEHICLES] = []
+        person[PERSON_VEHICLES].append(row)
+
         #log.debug(f"marking person { driver_id } / { driver } as having a vehicle")
 
-        # mark that person as having this vehicle
-        if driver_id not in person_to_vehicle:
-            person_to_vehicle[driver_id] = []
-        person_to_vehicle[driver_id].append(row)
+        if ROSTER_REF not in person:
+            vc = person['VC']
+            roster_ref = roster_by_vc.get(vc)
+            person[ROSTER_REF] = roster_ref
+            vehicle[ROSTER_REF] = roster_ref
+        else:
+            roster_ref = person[ROSTER_REF]
+            vehicle[ROSTER_REF] = roster_ref
+
+        if roster_ref is not None:
+            vehicle[DISTRICT] = roster_ref['District']
+            vehicle[TnM] = roster_ref['T&M']
+        else:
+            vehicle[TnM] = ''
+
+
+
+def do_status_messages(dr_config, args, account, vehicles, people, roster_by_vc):
+
+    vehicle_code_map = {
+            'A': 'ERV',
+            'B': 'Box Truck',
+            'C': 'Chapter Vehicle',
+            'D': 'Delivery Vehicle',
+            'R': 'Rental Vehicle',
+            'L': 'Loaned Vehicle',
+            'POV': 'Personal Vehicle',
+            }
+    def vehicle_category_code_to_string(code):
+        #string = vehicle_code_map.get(code)
+        #log.debug(f"vehicle_category: code '{ code }' string '{ string }'")
+        return vehicle_code_map.get(code)
+
+    key_name = 'Mem#'
+
+
+    # make an index of person ids
+
+    templates = gen_templates.init()
+    date = datetime.datetime.now().strftime("%Y-%m-%d %H%M")
+
+
+    preprocess_people_roster(vehicles, people, roster_by_vc)
 
     templates = gen_templates.init()
     t_vehicle = templates.get_template("mail_vehicle.html")
@@ -1612,8 +1735,12 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster):
     # now generate the emails
     if args.do_car:
         count = 0
-        for person_id, l in person_to_vehicle.items():
-            person = id_to_person[person_id]
+        for person in people.values():
+
+            if PERSON_VEHICLES not in person:
+                continue
+
+            l = person[PERSON_VEHICLES]
 
             first_name = person['FirstName']
             last_name = person['LastName']
@@ -1669,7 +1796,7 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster):
             email = person['Email']
 
             # ignore people that have vehicles
-            if PERSON_HAS_VEHICLE in person:
+            if PERSON_VEHICLES in person:
                 #log.debug(f"ignoring person { first_name } { last_name }: has a vehicle")
                 continue
 
@@ -1747,6 +1874,8 @@ def parse_args():
     parser.add_argument("--save", help="Keep a copy of the generated report", action="store_true")
     parser.add_argument("--test-send", help="Add the test email account to message recipients", action="store_true")
     parser.add_argument("--mail-limit", help="max number of emails to send (default: 5)", nargs="?", const=5, type=int)
+    parser.add_argument("--stats", help="add stats page to group-vehicle report", action="append")
+
     parser.add_argument("--dr-id", help="the name of the DR (like 155-22)", required=True, action="append")
 
     group = parser.add_mutually_exclusive_group(required=False)
