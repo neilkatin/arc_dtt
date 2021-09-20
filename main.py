@@ -1681,6 +1681,8 @@ def preprocess_people_roster(vehicles, people, roster_by_vc):
         if PERSON_VEHICLES not in person:
             person[PERSON_VEHICLES] = []
         person[PERSON_VEHICLES].append(row)
+        if driver_id == 6517:
+            log.debug(f"appending vehicle key # { vehicle['KeyNumber'] } for driver { driver_id }")
 
         #log.debug(f"marking person { driver_id } / { driver } as having a vehicle")
 
@@ -1724,9 +1726,6 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster_by_vc)
 
     templates = gen_templates.init()
     date = datetime.datetime.now().strftime("%Y-%m-%d %H%M")
-
-
-    preprocess_people_roster(vehicles, people, roster_by_vc)
 
     templates = gen_templates.init()
     t_vehicle = templates.get_template("mail_vehicle.html")
