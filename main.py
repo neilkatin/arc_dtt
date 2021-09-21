@@ -88,10 +88,10 @@ def main():
     if errors:
         return
 
-    roster = None
 
     account_avis = None
     for dr in args.dr_id:
+        roster = None
         dr_config = config.DR_CONFIGURATIONS[dr]
 
         # fetch from DTT
@@ -105,14 +105,6 @@ def main():
         vehicles = get_vehicles(config, dr_config, args, session)
         people = get_people(config, dr_config, args, session)
         agencies = get_agencies(config, dr_config, args, session)
-
-        # debuging only
-        for row in vehicles:
-            v = row['Vehicle']
-            if v['Expiry'] != False:
-                #log.debug(f"found expiry: { v }\n")
-                pass
-
 
         account_mail = None
 
@@ -1286,7 +1278,7 @@ def get_agencies(config, dr_config, args, session):
 
 def get_json(config, dr_config, args, session, api_type, prefix='api/Disaster/'):
 
-    file_name = f"cached_{ re.sub(r'/.*', '', api_type) }.json"
+    file_name = f"cached_{ dr_config.dr_id }_{ re.sub(r'/.*', '', api_type) }.json"
 
     data = None
     if args.cached_input:
