@@ -20,7 +20,7 @@ def compute_stats(vehicles, roster, gap_prefix):
     else:
         gap_regex = re.compile(f"^")
 
-    #log.debug(f"vehicle len { len(list(vehicles)) }, gap_prefix '{ gap_prefix }'")
+    #log.debug(f"vehicle len { len(list(vehicles)) }, roster len { len(roster) } gap_prefix '{ gap_prefix }'")
 
     # compute total matching MDA people on the roster
     roster_count = 0
