@@ -320,6 +320,7 @@ def send_report_common(dr_config, args, account, file_name, report_type, message
         log.debug(f"sending { file_name } to { dest_email }")
         posting = f"<p>This message was sent to { dest_email }.  Please do *not* reply to the whole list</p>\n"
     else:
+        log.debug(f"not sending { file_name } to { dest_email }")
         posting = \
 f"""
 <p>
@@ -685,7 +686,7 @@ def add_missing_avis_vehicles(vehicles, avis_all, avis_open, closed):
 
         if ra in i_ra or res in i_res or key in i_key or plate in i_plate:
 
-            log.debug(f"Adding missing vehicle to OPEN { key }")
+            #log.debug(f"Adding missing vehicle to OPEN { key }")
 
             # one or more fields from the DTT appeared in the avis_all list, but not the avis_open list.
             # add the row to the avis_open  list
@@ -712,7 +713,7 @@ def add_missing_avis_vehicles(vehicles, avis_all, avis_open, closed):
             # ZZZ: need to check closed roster before adding missing vehicles...
             if True:
                 # this is an entirely new vehicle that doesn't match anything in avis_all
-                log.debug(f"Adding missing vehicle to ALL { key }")
+                #log.debug(f"Adding missing vehicle to ALL { key }")
 
                 row = make_avis_from_vehicle(record)
                 row[AVIS_SOURCE] = AVIS_SOURCE_MISSING
@@ -812,56 +813,90 @@ def make_agency_key(agency):
     return key
 
 dtt_to_avis_make_dict = {
+        'Buick': 'BUIC',
+        'Chevrolet': 'CHEV',
+        'Chrysler': 'CHRY',
+        'Dodge': 'DODG',
+        'Ford': 'FORD',
+        'GMC': 'GMC ',
         'Honda': 'HOND',
-        'Toyota': 'TOYO',
-        'Kia': 'KIA ',
         'Hyundai': 'HYUN',
         'Jeep': 'JEEP',
-        'Ford': 'FORD',
+        'Kia': 'KIA ',
+        'Mazda': 'MAZD',
         'Mitsubishi': 'MITS',
         'Nissan': 'NISS',
-        'Mazda': 'MAZD',
         'Subaru': 'SUBA',
+        'Toyota': 'TOYO',
         'Volkswagen': 'VOLK',
         }
 dtt_to_avis_model_dict = {
-        'Corolla': 'CRLA',
-        'Civic': 'CIVI',
-        'Frontier': 'FRO4',
-        'Outlander': 'OUTL',
-        'Forte': 'FORT',
-        'Sorento': 'SO7F',
-        'Compass': 'CMPS',
-        'Altima': 'ALTI',
-        'Escort': 'ECOA',
-        'Prius': 'PRIH',
-        'Elantra': 'ELAN',
-        'CX-5': 'CX5A',
-        'Camry': 'CAMR',
-        'Explorer': 'EXL4',
-        'Escape': 'ESCA',
-        'HR-V': 'HRVA',
-        'RAV 4': 'RAV4',
-        'Sportage': 'SPO2',
-        'Outback': 'OUTB',
-        'Sentra': 'SENT',
-        'Ecosport': 'ECOA',
-        'Highlander': 'HIGH',
-        'Golf': 'GOLF',
-        'Legacy': 'LEGA',
-        'Sonata': 'SONA',
-        'Optima': 'OPTI',
-        'Accord': 'ACCO',
-        'Fusion': 'FUSI',
         '3': '3SED',
-        'Jetta': 'JETT',
-        'Rogue': 'ROG2',
-        'Tacoma': 'TAC4',
-        'Mustang': 'MUST',
         '4Runner': '4RUN',
+        '6': '6SED',
+        'Acadia': 'ACA2',
+        'Accord': 'ACCO',
+        'Altima': 'ALTI',
+        'Cadenza': 'K5K5',
+        'Camry': 'CAMR',
+        'Caravan': 'GRCA',
         'Charger': 'CHRT',
-        'Santa Fe': 'SANT',
+        'Civic': 'CIVI',
+        'Compass': 'CMPS',
+        'Corolla': 'CRLA',
+        'CR-V': 'CRV4',
+        'CX-5': 'CX5A',
+        'CX-9': 'CX9F',
+        'Eclipse': 'ECCF',
+        'Ecosport': 'ECOA',
+        'Edge': 'EDE2',
+        'Elantra': 'ELAN',
+        'Envision': 'ENVI',
+        'Equinox': 'EQUI',
+        'Escape': 'ESCA',
+        'Escort': 'ECOA',
+        'Expedition': 'EXL4',
+        'Explorer': 'EXL2',
+        'F-150': 'F150',
+        'Forte': 'FORT',
+        'Frontier': 'FRO4',
+        'Fusion': 'FUSI',
+        'Golf': 'GOLF',
+        'Highlander': 'HIGH',
+        'HR-V': 'HRVA',
+        'Jetta': 'JETT',
+        'Journey': 'JOU2',
+        'Legacy': 'LEGA',
+        'Malibu': 'MALB',
+        'Mustang': 'MUST',
+        'Optima': 'OPTI',
+        'Outback': 'OUTB',
+        'Outlander': 'OUTL',
+        'Pacifica': 'PACI',
+        'Passat': 'PASS',
         'Pathfinder': 'PATH',
+        'Prius': 'PRIH',
+        'Ranger': 'RAN4',
+        'RAV 4': 'RAV4',
+        'Rogue': 'ROG2',
+        'Santa Fe': 'SANT',
+        'Sentra': 'SENT',
+        'Sienna': 'SIEN',
+        'Sonata': 'SONA',
+        'Sorento': 'SO7F',
+        'Soul': 'SOUL',
+        'Sportage': 'SPO2',
+        'Tacoma': 'TAC4',
+        'Tahoe': 'TAHO',
+        'Terrain': 'TERR',
+        'Tracker': 'TRX2',
+        'Traverse': 'TRAV',
+        'Tucson': 'TUCS',
+        'Versa': 'VRSA',       
+        'Voyager': 'VGER',
+        'Wrangler': 'WRA4',
+        'XV Crosstrex': 'XVCR',
+        'Yukon': 'YUS4',
         }
 dtt_to_avis_color_dict = {
         'Silver': 'SIL',
@@ -872,7 +907,7 @@ dtt_to_avis_color_dict = {
         'Red': 'RED',
         }
 
-def dtt_to_avis_make(make_tuple):
+def dtt_to_avis_make(make_tuple, avis_tuple):
     """ convert DTT make/model/color to avis """
 
     make = None
@@ -881,14 +916,20 @@ def dtt_to_avis_make(make_tuple):
 
     if make_tuple[0] in dtt_to_avis_make_dict:
         make = dtt_to_avis_make_dict[make_tuple[0]]
+    else:
+        log.debug(f"could not find make '{ make_tuple[0] }' / avis '{ avis_tuple[0] }'")
         
     if make_tuple[1] in dtt_to_avis_model_dict:
         model = dtt_to_avis_model_dict[make_tuple[1]]
     else:
-        log.debug(f"could not find model '{ make_tuple[1] }'")
+        log.debug(f"could not find model '{ make_tuple[1] }' / avis '{ avis_tuple[1] }'")
 
     if make_tuple[2] in dtt_to_avis_color_dict:
         color = dtt_to_avis_color_dict[make_tuple[2]]
+    else:
+        # avis does't have Yellow and Beige in its list of colors
+        if make_tuple[2] != 'Yellow' and make_tuple[2] != 'Beige':
+            log.debug(f"could not find color '{ make_tuple[2] }' / avis '{ avis_tuple[2] }'")
 
 
     return (make, model, color)
@@ -909,6 +950,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
     multispace_re = re.compile(r'\s+')
 
     #log.debug(f"make translation dict: { dtt_to_avis_model_dict }")
+    agency_no_match_list = {}
 
     def mark_cell_wrapper(vid, field_name, spreadsheet_row, columns, column_name):
         if vid is None:
@@ -1010,7 +1052,10 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
                     fill = FILL_GREEN
                 else:
                     fill = FILL_YELLOW
-                    log.debug(f"no agency match '{ addr_line }' / '{ agency_string }'")
+                    if agency_string not in agency_no_match_list:
+                        # only print once per agency
+                        log.debug(f"no agency match '{ addr_line }' / '{ agency_string }'")
+                        agency_no_match_list[agency_string] = True
 
                     comment = Comment(
                             f"DTT location is:\n"
@@ -1050,7 +1095,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
             avis_veh_make = list(row[col_name] for col_name in avis_make_cols)
             #avis_veh_make = (row['Make'], row['Model'], row['Ext Color Code'])
             dtt_veh_make_orig = (vehicle['Make'].strip(), vehicle['Model'].strip(), vehicle['Color'].strip())
-            dtt_veh_make = dtt_to_avis_make(dtt_veh_make_orig)
+            dtt_veh_make = dtt_to_avis_make(dtt_veh_make_orig, avis_veh_make)
 
             #log.debug(f"avis make {  avis_veh_make } dtt { dtt_veh_make } orig { dtt_veh_make_orig }")
 
@@ -1349,7 +1394,7 @@ def make_group_report(config, dr_config, args, vehicles, people, roster):
 
     for group in gap_list:
         group_vehicles = filter_by_gap_group(group, vehicles)
-        log.debug(f"make_group_report: group { group } # veh { len(list(group_vehicles)) }")
+        #log.debug(f"make_group_report: group { group } # veh { len(list(group_vehicles)) }")
         add_gap_sheet(wb, group, group_vehicles, people, roster, activity=True)
 
     #if len(district_list) > 1:
@@ -1505,7 +1550,7 @@ def get_people_column(people, pid, column):
 def add_gap_sheet(wb, sheet_name, vehicles, people, roster, activity=False):
     """ make a new sheet with the specified vehicles """
 
-    log.debug(f"processing sheet '{ sheet_name }' activity { activity }")
+    #log.debug(f"processing sheet '{ sheet_name }' activity { activity }")
     if sheet_name == '':
         sheet_name = "BLANK"
 
@@ -1562,8 +1607,8 @@ def add_gap_sheet(wb, sheet_name, vehicles, people, roster, activity=False):
         row_vehicle = vehicle['Vehicle']
         group = vehicle_to_group(row_vehicle, activity=activity)
         if group not in seen_groups:
-            log.debug(f"seen new group: '{ group }'")
-        seen_groups[group] = True
+            #log.debug(f"seen new group: '{ group }'")
+            seen_groups[group] = True
 
         # leave a blank row when the group changes
         if group != previous_group:

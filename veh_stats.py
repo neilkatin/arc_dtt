@@ -51,7 +51,7 @@ def compute_stats(vehicles, roster, gap_prefix):
         if gap_regex.match(gap):
             vehicle_count += 1
 
-    log.debug(f"gap_prefix { gap_prefix } roster_count { roster_count } vehicle_count { vehicle_count }")
+    #log.debug(f"gap_prefix { gap_prefix } roster_count { roster_count } vehicle_count { vehicle_count }")
     return roster_count, vehicle_count
 
 
