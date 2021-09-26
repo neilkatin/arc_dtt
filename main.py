@@ -1094,7 +1094,9 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
             avis_make_cols = ['Make', 'Model', 'Ext Color Code']
             avis_veh_make = list(row[col_name] for col_name in avis_make_cols)
             #avis_veh_make = (row['Make'], row['Model'], row['Ext Color Code'])
-            dtt_veh_make_orig = (vehicle['Make'].strip(), vehicle['Model'].strip(), vehicle['Color'].strip())
+            dtt_veh_make_orig = (vehicle['Make'].strip() if vehicle['Make'] != None else None,
+                    vehicle['Model'].strip() if vehicle['Model'] != None else None,
+                    vehicle['Color'].strip() if vehicle['Color'] != None else None)
             dtt_veh_make = dtt_to_avis_make(dtt_veh_make_orig, avis_veh_make)
 
             #log.debug(f"avis make {  avis_veh_make } dtt { dtt_veh_make } orig { dtt_veh_make_orig }")
