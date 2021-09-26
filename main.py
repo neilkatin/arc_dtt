@@ -86,7 +86,7 @@ def main():
             errors = True
 
     if errors:
-        return
+        sys.exit(1)
 
 
     account_avis = None
@@ -96,8 +96,15 @@ def main():
 
         # fetch from DTT
         session = web_session.get_session(config, dr_config)
-
-        get_dr_list(config, dr_config, session)
+        success = get_dr_list(config, dr_config, session)
+        if not success:
+            log.info(f"Login failure for dr { dr }: retrying without cookies")
+            session = web_session.get_session(config, dr_config, force_new_session=True)
+            success = get_dr_list(config, dr_config, session)
+            if not success:
+                log.error(f"Could not access DTT for dr { dr }")
+                errors = True
+                continue
 
         log.debug(f"DR_ID { dr }")
 
@@ -174,6 +181,8 @@ def main():
                 item_name = f"DR{ dr_config.dr_id } { FILESTAMP } Vehicle Backup.xlsx"
                 store_report(config, account_mail, item_name, output_bytes)
 
+    if errors:
+        sys.exit(1)
 
 
 def get_roster(config, dr, vehicles, people):
@@ -202,6 +211,9 @@ def get_dr_list(config, dr_config, session):
     r.raise_for_status()
 
     codes = r.html.find('#DisasterCodes', first=True)
+    if codes == None:
+        # could not read form: login failed?
+        return None
 
     options = codes.find('option')
 
@@ -213,6 +225,8 @@ def get_dr_list(config, dr_config, session):
     # for now, while we only have access to one DR: pick the last value
     dr_config.id = value
     dr_config.name = text
+
+    return value
 
 
 

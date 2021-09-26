@@ -33,11 +33,11 @@ log = logging.getLogger(__name__)
 
 
 
-def get_session(config, dr_config, session=None):
+def get_session(config, dr_config, session=None, force_new_session=False):
 
     cookies = None
 
-    if session == None:
+    if session == None and not force_new_session:
         try:
             cookies = LWPCookieJar(dr_config.cookie_filename)
             #log.debug("before cookie load")
