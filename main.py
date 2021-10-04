@@ -810,7 +810,8 @@ def mark_cell(ws, fill, row_num, col_map, col_name, comment=None):
         cell.comment = comment
 
 
-
+agency_key_fixup_punctuation = re.compile(r'[.,]')
+agency_key_fixup_space = re.compile(r'  +')
 def make_agency_key(agency):
     """ generate a (hopefully) unique key for the DTT agencies.  Combine Address, City, State, Zip.
 
@@ -824,6 +825,10 @@ def make_agency_key(agency):
 
     key = f"{ address }/{ city } { state }{ zipcode }".upper()
     #log.debug(f"key { key }")
+
+    # remove punctuation, compress spaces
+    key = agency_key_fixup_punctuation.sub('', key)
+    key = agency_key_fixup_space.sub(' ', key)
     return key
 
 dtt_to_avis_make_dict = {
@@ -856,11 +861,13 @@ dtt_to_avis_model_dict = {
         'Caravan': 'GRCA',
         'Charger': 'CHRT',
         'Civic': 'CIVI',
+        'CJ': 'GLH4',
         'Compass': 'CMPS',
         'Corolla': 'CRLA',
         'CR-V': 'CRV4',
         'CX-5': 'CX5A',
         'CX-9': 'CX9F',
+        'Durango': 'DURA',
         'Eclipse': 'ECCF',
         'Ecosport': 'ECOA',
         'Edge': 'EDE2',
@@ -872,6 +879,7 @@ dtt_to_avis_model_dict = {
         'Expedition': 'EXL4',
         'Explorer': 'EXL2',
         'F-150': 'F150',
+        'Forester': 'FORE',
         'Forte': 'FORT',
         'Frontier': 'FRO4',
         'Fusion': 'FUSI',
@@ -890,10 +898,12 @@ dtt_to_avis_model_dict = {
         'Passat': 'PASS',
         'Pathfinder': 'PATH',
         'Prius': 'PRIH',
+        'RAM': 'RAR2',
         'Ranger': 'RAN4',
         'RAV 4': 'RAV4',
         'Rogue': 'ROG2',
         'Santa Fe': 'SANT',
+        'Sedona': 'SEDO',
         'Sentra': 'SENT',
         'Sienna': 'SIEN',
         'Sonata': 'SONA',
@@ -903,6 +913,7 @@ dtt_to_avis_model_dict = {
         'Tacoma': 'TAC4',
         'Tahoe': 'TAHO',
         'Terrain': 'TERR',
+        'Tiguan': 'TIG2',
         'Tracker': 'TRX2',
         'Traverse': 'TRAV',
         'Tucson': 'TUCS',
@@ -919,6 +930,7 @@ dtt_to_avis_color_dict = {
         'Black': 'BLK',
         'Gray': 'GRY',
         'Red': 'RED',
+        'Brown': 'BRO',
         }
 
 def dtt_to_avis_make(make_tuple, avis_tuple):
@@ -1269,13 +1281,16 @@ def read_avis_sheet(dr_config, sheet):
 
     # trying to match patterns like:
     # 98, 098, DR098, DR098-21, DR098-2021, 098-21, etc...
-    dr_num = dr_config.dr_num
-    dr_num = dr_num.lstrip('0')
-    dr_regex = re.compile(r"(dr)?\s*0*" f"{ dr_num }" r"(-(20)?" f"{ dr_config.dr_year })?", flags=re.IGNORECASE)
+    avis_dr = []
+    for dr_tuple in dr_config.get_dr_list():
+        dr_num = dr_tuple[0]
+        dr_year = dr_tuple[1]
 
-    #avis_dr = list(filter(lambda x: dr_regex.match(x), avis_all))
-    f_result = filter(lambda row: dr_regex.match(row[dr_column]), avis_all)
-    avis_dr = list(f_result)
+        dr_num = dr_num.lstrip('0')
+        dr_regex = re.compile(r"(dr)?\s*0*" f"{ dr_num }" r"(-(20)?" f"{ dr_year })?", flags=re.IGNORECASE)
+
+        f_result = filter(lambda row: dr_regex.match(row[dr_column]), avis_all)
+        avis_dr.extend( f_result )
 
     log.debug(f"found { len(avis_dr) } vehicles associated with the DR")
     

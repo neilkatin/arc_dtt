@@ -34,7 +34,8 @@ PROGRAM_EMAIL = 'DR-Report-Automation@redcross.org'
 DR_CONFIGURATIONS = {}
 
 class DRConfig:
-    def __init__(self, dr_num, dr_year, send_email, dtt_user, target_list, reply_email=None):
+    def __init__(self, dr_num, dr_year, send_email, dtt_user, target_list, reply_email=None, extra_drs=None):
+        """ extra_drs is an array of (dr_num, dr_year) tuples.  Probably rarely needed, but DR155 changed to DR285 """
         self._dr_num = dr_num.rjust(3, '0')
         self._dr_year = dr_year
         self._send_email = send_email
@@ -48,6 +49,8 @@ class DRConfig:
 
         self._id = None
         self._name = None
+
+        self._extra_drs = extra_drs
 
         DR_CONFIGURATIONS[self.dr_id] = self
 
@@ -111,9 +114,22 @@ class DRConfig:
     def cookie_filename(self):
         return f"dtt_cookies-{ self.dr_id }.txt"
 
+    @property
+    def extra_drs(self):
+        return self._extra_drs
+
+    def get_dr_list(self):
+        retval = [ (self.dr_num, self.dr_year) ]
+        if self.extra_drs != None:
+            retval.extend(self.extra_drs)
+        return retval
+
 
 DRConfig('155', '22', 'DR155-22Log-Tra2@redcross.org', 'DR155-22Log-Tra2@redcross.org', 'dr155-22-tra-reports@americanredcross.onmicrosoft.com')
-DRConfig('285', '22', 'DR155-22Log-Tra2@redcross.org', 'DR285-22Log-Tra2@redcross.org', 'dr155-22-tra-reports@americanredcross.onmicrosoft.com')
+DRConfig('285', '22', 'DR155-22Log-Tra2@redcross.org', 'DR285-22Log-Tra2@redcross.org', 'dr155-22-tra-reports@americanredcross.onmicrosoft.com',
+        #extra_drs=[ ('155', '22') ]
+        )
+
 DRConfig('204', '22', 'DR204-22Log-Tra2@redcross.org', 'DR204-22Log-Tra2@redcross.org', 'DR204-22Log-Tra1@redcross.org', reply_email='DR204-22Log-Tra1@redcross.org')
 DRConfig('225', '22', 'DR225-22Log-Tra2@redcross.org', 'DR225-22Log-Tra2@redcross.org', 'DR225-22Log-Tra1@redcross.org', reply_email='DR225-22Log-Tra1@redcross.org')
 DRConfig('234', '22', 'DR234-22Log-Tra2@redcross.org', 'DR234-22Log-Tra2@redcross.org', 'DR234-22Log-Tra1@redcross.org', reply_email='DR234-22Log-Tra1@redcross.org')
