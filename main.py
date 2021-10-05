@@ -9,6 +9,8 @@ import datetime
 import json
 import io
 import zipfile
+import itertools
+import functools
 
 import openpyxl
 import openpyxl.utils
@@ -180,6 +182,9 @@ def main():
             if args.store:
                 item_name = f"DR{ dr_config.dr_id } { FILESTAMP } Vehicle Backup.xlsx"
                 store_report(config, account_mail, item_name, output_bytes)
+
+        if args.do_dtr:
+            dtr = make_dtr(dr_config, vehicles)
 
     if errors:
         sys.exit(1)
@@ -1428,15 +1433,6 @@ def make_group_report(config, dr_config, args, vehicles, people, roster):
         #log.debug(f"make_group_report: group { group } # veh { len(list(group_vehicles)) }")
         add_gap_sheet(wb, group, group_vehicles, people, roster, activity=True)
 
-    #if len(district_list) > 1:
-    #    for district in district_list:
-    #        district_vehicles = filter_by_district(district, vehicles)
-    #        add_gap_sheet(wb, district, district_vehicles, people, roster)
-
-    #if args.stats:
-    #    # this is not working well yet
-    #    veh_stats.compute_stats(wb, vehicles, people, roster, district_list)
-
     # serialize the workbook
     bufferview = workbook_to_buffer(wb)
 
@@ -1925,6 +1921,212 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster_by_vc)
         log.debug(f"found { count } people without cars")
 
 
+def make_dtr(dr_config, vehicles):
+    """ do a replacement for the daily transportation report.  Can be pretty stupid for now"""
+
+    count_category_active = {}
+    count_category_all = {}
+    count_dvid = {}
+    count_vid = {}
+
+    count_rental_group = {}
+    count_rental_psc = {}
+    count_boxtruck_group = {}
+    count_boxtruck_psc = {}
+    count_passengervan_group = {}
+    count_passengervan_psc = {}
+    count_cargovan_group = {}
+    count_cargovan_psc = {}
+
+    def bump_count(count_dict, index):
+        if index not in count_dict:
+            count_dict[index] = 0
+        count_dict[index] += 1
+
+    gap_to_group_re = re.compile(r'([A-Z]+)/.*')
+    def gap_to_group(gap):
+        if gap == '' or gap is None:
+            return 'LOG'
+
+        for prefix in [ 'IDC/DMH', 'IDC/DHS', 'IDC/DSC', 'IP/DA', 'REC/REV', 'RES/DAT', 'ER/PA', 'ER/APAT', 'ER/FR' ]:
+            if gap.startswith(f'{ prefix }/'):
+                return prefix
+
+        group = gap_to_group_re.sub(r'\1', gap)
+        return group
+
+    group_to_psc = {
+            'MC': 21,
+
+            'RES/DAT': 22,
+
+            'IDC': 23,
+            'IDC/DHS': 23,
+            'IDC/DMH': 24,
+            'IDC/DSC': 24,
+
+            'ER': 26,
+            'IP/DA': 26,
+
+            'REC': 27,
+            'REC/REV': 27,
+
+            'OM': 28,
+            'IP': 28,
+            'FIN': 28,
+            'ER/PA': 28,
+            'ER/APAT': 28,
+
+            'DST': 29,
+            'LOG': 29,
+            'SS': 29,
+            'RES': 29,
+
+            'ER/FR': 80,
+            }
+
+    # compute category sub-totals
+    for row in vehicles:
+        veh = row['Vehicle']
+
+        status = row['Status']
+        category = veh['VehicleCategoryCode']
+        type = veh['VehicleType']
+        dvid = row['DisasterVehicleID']
+        vid = veh['VehicleID']
+        gap = veh['GAP']
+        group = gap_to_group(gap)
+        psc = group_to_psc[group]
+        #log.debug(f"gap '{ gap }' group '{ group }'")
+        #if type != 'Car':
+        #    log.debug(f"type: '{ type }'")
+
+        if category == 'R' or category == 'D':
+            if type == 'Passenger Van':
+                category = 'P-Van'
+            elif type == 'Cargo Van':
+                category = 'Cargo'
+            else:
+                # fold D into R
+                category = 'R'
+
+        bump_count(count_category_all, category)
+        if status == 'Active':
+            bump_count(count_category_active, category)
+            if category == 'B':
+                bump_count(count_boxtruck_group, group)
+                bump_count(count_boxtruck_psc, psc)
+            elif category == 'P-Van':
+                bump_count(count_passengervan_group, group)
+                bump_count(count_passengervan_psc, psc)
+            elif category == 'Cargo':
+                bump_count(count_cargovan_group, group)
+                bump_count(count_cargovan_psc, psc)
+            elif category == 'R':
+                bump_count(count_rental_group, group)
+                bump_count(count_rental_psc, psc)
+
+        bump_count(count_dvid, dvid)
+        bump_count(count_vid, vid)
+
+    def sumcategory(count_dict, keys):
+        total = 0
+        for key in keys:
+            total += count_dict.get(key, 0)
+
+        #log.debug(f"sumcategory: total '{ total }'")
+        return total
+
+
+    # this is assumed to not have dup IDs
+    for (key, val) in count_dvid.items():
+        if val != 1:
+            log.error(f"found a dup dvid { key }: { val } appearances")
+    for (key, val) in count_vid.items():
+        if val != 1:
+            log.error(f"found a dup vid { key }: { val } appearances")
+
+    categories = [ 'R', 'B', 'Cargo', 'P-Van' ]
+
+    print(f"")
+    print(f"Report run: { TIMESTAMP }, DR { dr_config.dr_id }")
+    print(f"")
+    print(f"Vehicle Counts")
+    dformat = "%13s %-50s %7d %7d"
+    sformat = "%13s %-50s %7s %7s"
+    print(sformat % ('5266 Line No', 'Category', 'Period', 'To Date'))
+    print(dformat % ('47', 'ERVs', count_category_active.get('A', 0), count_category_all.get('A', 0)))
+    print(dformat % ('48', 'Red Cross Vehicles', count_category_active.get('C', 0), count_category_all.get('C', 0)))
+    print(f"")
+    print(dformat % ('51', 'Passenger Rental Vehicles', count_category_active.get('R', 0), count_category_all.get('R', 0)))
+    print(dformat % ('52', 'Passenger Vans', count_category_active.get('P-Van', 0), count_category_all.get('P-Van', 0)))
+    print(dformat % ('53', 'Non-Passenger Rental Vehicles/Vans', count_category_active.get('Cargo', 0), count_category_all.get('Cargo', 0)))
+    print(dformat % ('54', 'Box Trucks', count_category_active.get('B', 0), count_category_all.get('B', 0)))
+    print(dformat % ('55', '  Total Rental Vehicles',
+        sumcategory(count_category_active, categories),
+        sumcategory(count_category_all, categories)))
+
+    print(f"")
+    print(f"")
+    print(f"Rental Vehicle Costs")
+    dformat = "%6s %-30s %10d %10d"
+    sformat = "%6s %-30s %10s %10s"
+
+    total_allpsc_count = 0
+    total_allpsc_cost = 0
+
+    def print_psc(psc, show_details=False):
+        nonlocal total_allpsc_count
+        nonlocal total_allpsc_cost
+
+        #if psc == 21 or psc == 29:
+        #    detailed = True
+        #else:
+        #    detailed = False
+
+        rental_count = count_rental_psc.get(psc, 0)
+        rental_cost = rental_count * 45
+
+        boxtruck_count = count_boxtruck_psc.get(psc, 0)
+        boxtruck_cost = boxtruck_count * 75
+
+        van_count = count_cargovan_psc.get(psc, 0)
+        van_cost = van_count * 70
+
+        pvan_count = count_passengervan_psc.get(psc, 0)
+        pvan_cost = pvan_count * 106
+
+        total_count = pvan_count + van_count + boxtruck_count + rental_count
+        total_cost = pvan_cost + van_cost + boxtruck_cost + rental_cost
+
+        detailed =  pvan_count > 0 or van_count > 0 or boxtruck_count > 0
+
+        total_allpsc_count += total_count
+        total_allpsc_cost += total_cost
+
+        if detailed and show_details:
+            print(dformat % (psc, 'Passenger Vehicles (Cat R)', rental_count, rental_cost))
+            print(dformat % ('', 'Box Truck (Cat B)', boxtruck_count, boxtruck_cost))
+            print(dformat % ('', 'Passenger Van', pvan_count, pvan_cost))
+            print(dformat % ('', 'Non-Passenger/Cargo Van', van_count, van_cost))
+            print(dformat % ('', f'   Total Cost PSC { psc }', total_count, total_cost))
+            print(f"")
+        elif show_details == False:
+            print(dformat % (psc, 'All Vehicles', total_count, total_cost))
+
+
+    print(sformat % ( "PSC", "Description", "Veh Count", "Daily Cost"))
+
+    for psc in itertools.chain(range(21, 30), [ 80 ]):
+        print_psc(psc)
+
+    print(f"")
+    print(dformat % ('', 'Total Cost All Rentals', total_allpsc_count, total_allpsc_cost))
+
+    print(f"")
+    print(f"PSC Details")
+    for psc in itertools.chain(range(21, 30), [ 80 ]):
+        print_psc(psc, show_details = True)
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -1937,11 +2139,11 @@ def parse_args():
     parser.add_argument("--do-vehicles", help="Generate a Vehicle backup", action="store_true")
     parser.add_argument("--do-car", help="Generate vehicle status messages", action="store_true")
     parser.add_argument("--do-no-car", help="Generate vehicle status messages", action="store_true")
+    parser.add_argument("--do-dtr", help="generate daily transportation report", action="store_true")
     parser.add_argument("--send", help="Send messages to the actual intended recipients", action="store_true")
     parser.add_argument("--save", help="Keep a copy of the generated report", action="store_true")
     parser.add_argument("--test-send", help="Add the test email account to message recipients", action="store_true")
     parser.add_argument("--mail-limit", help="max number of emails to send (default: 5)", nargs="?", const=5, type=int)
-    parser.add_argument("--stats", help="add stats page to group-vehicle report", action="append")
 
     parser.add_argument("--dr-id", help="the name of the DR (like 155-22)", required=True, action="append")
 
@@ -1951,8 +2153,8 @@ def parse_args():
 
     args = parser.parse_args()
 
-    if not args.do_avis and not args.do_group and not args.do_car and not args.do_no_car:
-        log.error("At least one of do-avis, do-group, do-car, or do-no-car must be specified")
+    if not args.do_avis and not args.do_group and not args.do_car and not args.do_no_car and not args.do_dtr:
+        log.error("At least one of do-avis, do-group, do-car, do-no-car, or do-dtr must be specified")
         sys.exit(1)
 
     return args
