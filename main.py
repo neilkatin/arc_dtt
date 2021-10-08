@@ -2004,10 +2004,9 @@ def make_dtr(dr_config, vehicles):
         if category == 'R' or category == 'D':
             if type == 'Passenger Van':
                 category = 'P-Van'
-            elif type == 'Cargo Van':
-                category = 'Cargo'
+            elif type == 'Cargo Van' or category == 'D':
+                category = 'D'
             else:
-                # fold D into R
                 category = 'R'
 
         bump_count(count_category_all, category)
@@ -2019,7 +2018,7 @@ def make_dtr(dr_config, vehicles):
             elif category == 'P-Van':
                 bump_count(count_passengervan_group, group)
                 bump_count(count_passengervan_psc, psc)
-            elif category == 'Cargo':
+            elif category == 'D':
                 bump_count(count_cargovan_group, group)
                 bump_count(count_cargovan_psc, psc)
             elif category == 'R':
@@ -2046,7 +2045,7 @@ def make_dtr(dr_config, vehicles):
         if val != 1:
             log.error(f"found a dup vid { key }: { val } appearances")
 
-    categories = [ 'R', 'B', 'Cargo', 'P-Van' ]
+    categories = [ 'R', 'B', 'D', 'P-Van' ]
 
     print(f"")
     print(f"Report run: { TIMESTAMP }, DR { dr_config.dr_id }")
@@ -2060,7 +2059,7 @@ def make_dtr(dr_config, vehicles):
     print(f"")
     print(dformat % ('51', 'Passenger Rental Vehicles', count_category_active.get('R', 0), count_category_all.get('R', 0)))
     print(dformat % ('52', 'Passenger Vans', count_category_active.get('P-Van', 0), count_category_all.get('P-Van', 0)))
-    print(dformat % ('53', 'Non-Passenger Rental Vehicles/Vans', count_category_active.get('Cargo', 0), count_category_all.get('Cargo', 0)))
+    print(dformat % ('53', 'Non-Passenger Rental Vehicles/Vans', count_category_active.get('D', 0), count_category_all.get('D', 0)))
     print(dformat % ('54', 'Box Trucks', count_category_active.get('B', 0), count_category_all.get('B', 0)))
     print(dformat % ('55', '  Total Rental Vehicles',
         sumcategory(count_category_active, categories),
@@ -2069,11 +2068,18 @@ def make_dtr(dr_config, vehicles):
     print(f"")
     print(f"")
     print(f"Rental Vehicle Costs")
-    dformat = "%6s %-30s %10d %10d"
-    sformat = "%6s %-30s %10s %10s"
+    dformat = "%6s %-31s %6d %10d"
+    sformat = "%6s %-31s %6s %10s"
 
     total_allpsc_count = 0
     total_allpsc_cost = 0
+
+    cost_table = {
+            'R': 45,
+            'B': 75,
+            'P-Van': 106,
+            'D': 70,
+            }
 
     def print_psc(psc, show_details=False):
         nonlocal total_allpsc_count
@@ -2084,17 +2090,18 @@ def make_dtr(dr_config, vehicles):
         #else:
         #    detailed = False
 
+
         rental_count = count_rental_psc.get(psc, 0)
-        rental_cost = rental_count * 45
+        rental_cost = rental_count * cost_table['R']
 
         boxtruck_count = count_boxtruck_psc.get(psc, 0)
-        boxtruck_cost = boxtruck_count * 75
+        boxtruck_cost = boxtruck_count * cost_table['B']
 
         van_count = count_cargovan_psc.get(psc, 0)
-        van_cost = van_count * 70
+        van_cost = van_count * cost_table['D']
 
         pvan_count = count_passengervan_psc.get(psc, 0)
-        pvan_cost = pvan_count * 106
+        pvan_cost = pvan_count * cost_table['P-Van']
 
         total_count = pvan_count + van_count + boxtruck_count + rental_count
         total_cost = pvan_cost + van_cost + boxtruck_cost + rental_cost
@@ -2108,7 +2115,7 @@ def make_dtr(dr_config, vehicles):
             print(dformat % (psc, 'Passenger Vehicles (Cat R)', rental_count, rental_cost))
             print(dformat % ('', 'Box Truck (Cat B)', boxtruck_count, boxtruck_cost))
             print(dformat % ('', 'Passenger Van', pvan_count, pvan_cost))
-            print(dformat % ('', 'Non-Passenger/Cargo Van', van_count, van_cost))
+            print(dformat % ('', 'Non-Passenger/Cargo Van (Cat D)', van_count, van_cost))
             print(dformat % ('', f'   Total Cost PSC { psc }', total_count, total_cost))
             print(f"")
         elif show_details == False:
@@ -2121,12 +2128,21 @@ def make_dtr(dr_config, vehicles):
         print_psc(psc)
 
     print(f"")
-    print(dformat % ('', 'Total Cost All Rentals', total_allpsc_count, total_allpsc_cost))
+    print(dformat % ('', 'Total All Rentals', total_allpsc_count, total_allpsc_cost))
 
     print(f"")
     print(f"PSC Details")
     for psc in itertools.chain(range(21, 30), [ 80 ]):
         print_psc(psc, show_details = True)
+
+    print(f"")
+    print(f"Cost Model:")
+    print(f"    Passenger Vehicles (Cat R): { cost_table['R'] }")
+    print(f"    Box Trucks (Cat B): { cost_table['B'] }")
+    print(f"    Non Passenger Rentals (Cat D): { cost_table['D'] }")
+    print(f"    10-14 person Passenger Vans: { cost_table['P-Van'] }")
+
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
