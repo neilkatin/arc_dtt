@@ -125,8 +125,9 @@ class DRConfig:
         return retval
 
 
+#       DRNum   DRYear  Send Email                        DTT User                           Target List for group-vehicle
 DRConfig('155', '22', 'DR155-22Log-Tra2@redcross.org', 'DR155-22Log-Tra2@redcross.org', 'dr155-22-tra-reports@americanredcross.onmicrosoft.com')
-DRConfig('285', '22', 'DR155-22Log-Tra2@redcross.org', 'DR285-22Log-Tra2@redcross.org', 'dr155-22-tra-reports@americanredcross.onmicrosoft.com',
+DRConfig('285', '22', 'DR285-22Transport@redcross.org', 'DR285-22Log-Tra2@redcross.org', 'dr155-22-tra-reports@americanredcross.onmicrosoft.com',
         extra_drs=[ ('155', '22') ]
         )
 

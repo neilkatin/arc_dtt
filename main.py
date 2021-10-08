@@ -329,7 +329,7 @@ or have other tasks you think should be automated on a DR: email
 def send_report_common(dr_config, args, account, file_name, report_type, message_body, dest_email):
 
     mailbox = account.mailbox()
-    message = mailbox.new_message()
+    message = mailbox.new_message(resource=dr_config.send_mail)
 
     if args.test_send:
         message.bcc.add(dr_config.email_bcc)
@@ -1826,7 +1826,7 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster_by_vc)
             #log.debug(f"body { body }")
 
             if account is not None:
-                m = account.new_message()
+                m = account.new_message(resource=dr_config.send_email)
                 if args.test_send:
                     m.bcc.add(dr_config.email_bcc)
                 if args.send:
@@ -1900,7 +1900,7 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster_by_vc)
             #log.debug(f"body { body }")
 
             if account is not None:
-                m = account.new_message()
+                m = account.new_message(resource=dr_config.send_email)
                 if args.test_send:
                     m.bcc.add(dr_config.email_bcc)
                 if args.send:
