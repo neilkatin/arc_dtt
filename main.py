@@ -430,9 +430,8 @@ def make_avis(config, dr_config, account, vehicles, agencies):
     workbook = fetch_avis(config, account)
 
     output_wb = openpyxl.Workbook()
-    insert_avis_overview(output_wb, config, dr_config)
 
-
+    # insert vehicles
     output_ws_open = output_wb.create_sheet("Open RA")
 
     # we now have the latest file.  Suck out all the data
@@ -445,6 +444,9 @@ def make_avis(config, dr_config, account, vehicles, agencies):
     # generate the 'Open RA' sheet
     output_columns = copy_avis_sheet(output_ws_open, avis_open_columns, avis_open_title, avis_open)
     match_avis_sheet(output_ws_open, output_columns, avis_open, vehicles, agencies)
+
+    # insert overview at the end
+    insert_avis_overview(output_wb, config, dr_config)
 
     # now serialize the workbook
     bufferview = workbook_to_buffer(output_wb)
@@ -994,7 +996,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
             veh_value = veh[field_name]
 
             comment = Comment(
-                    f"DTT id { vid }\n"
+                    f"DTT id { vid } -- status { vrow['Status'] }\n"
                     f"Driver { veh['CurrentDriverName'] }\n"
                     f"Key { veh['KeyNumber'] }\n"
                     f"Reservation { veh['RentalAgreementReservationNumber'] }\n"
@@ -1253,7 +1255,7 @@ This file generated at { TIMESTAMP }
 
 def insert_overview(wb, doc_string):
 
-    ws = wb.create_sheet('Overview', 0)
+    ws = wb.create_sheet('Overview')
 
     ws.column_dimensions['A'].width = 120       # hard coded width....
     ws.row_dimensions[1].height = 500           # hard coded height....
