@@ -427,18 +427,19 @@ def fetch_avis(config, account):
 def make_avis(config, dr_config, account, vehicles, agencies):
     """ fetch the latest avis vehicle report from sharepoint """
 
-    workbook = fetch_avis(config, account)
+    avis_wb = fetch_avis(config, account)
 
     output_wb = openpyxl.Workbook()
 
     # insert vehicles
-    output_ws_open = output_wb.create_sheet("Open RA")
+    output_ws_open = output_wb.create_sheet(f"DR{ dr_config.dr_id }")
+    log.debug(f"sheet names: { output_wb.sheetnames }")
 
     # we now have the latest file.  Suck out all the data
-    avis_open_title, avis_open_columns, avis_open, avis_open_all = read_avis_sheet(dr_config, workbook.get_worksheet('Open RA'))
+    avis_open_title, avis_open_columns, avis_open, avis_open_all = read_avis_sheet(dr_config, avis_wb.get_worksheet('Open RA'))
     add_missing_avis_vehicles(vehicles, avis_open_all, avis_open, closed=False)
 
-    #avis_closed_title, avis_closed_columns, avis_closed, avis_closed_all = read_avis_sheet(dr_config, workbook.get_worksheet('Closed RA'))
+    #avis_closed_title, avis_closed_columns, avis_closed, avis_closed_all = read_avis_sheet(dr_config, avis_wb.get_worksheet('Closed RA'))
     #add_missing_avis_vehicles(vehicles, avis_closed_all, avis_closed, closed=True)
 
     # generate the 'Open RA' sheet
@@ -631,8 +632,29 @@ def make_vehicle_index(vehicles, first_field, second_field=None, reservation=Fal
                 continue
             key = key + " " + second.strip()
 
-        #log.debug(f"make_vehicle_index: key '{ key.upper() }'")
-        result[key.upper()] = row
+        key = key.upper()
+        #log.debug(f"make_vehicle_index: key '{ key }'")
+
+        if key in result:
+            old_row = result[key]
+
+            if old_row['Status'] == 'Active' and row['Status'] == Active:
+                log.error(f"Error: Duplicate rows with key '{ key }' and both are active")
+                log.info(f"DUPLICATE: key '{ key }' is already in result.\n\nExisting{ result[key] }\n\nnew { row }")
+
+            else:
+                # at most one row is active
+                log.info(f"Error: Duplicate rows with key '{ key }', at most one active "
+                        f"(old: '{ old_row['Vehicle']['KeyNumber'] }', "
+                        f"new '{ row['Vehicle']['KeyNumber'] }')"
+                        )
+
+                if row['Status'] == 'Active':
+                    # we know that old_row is not active, so use the current row.
+                    result[key] = row
+        else:
+            # first row with this key
+            result[key] = row
 
     return result
 
