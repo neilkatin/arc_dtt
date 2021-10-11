@@ -117,7 +117,7 @@ def main():
 
         account_mail = None
 
-        if args.send or args.test_send:
+        if args.send or args.test_send or args.send_to:
             log.debug(f"initializing mail account: { dr_config.token_filename }")
             account_mail = init_o365(config, dr_config.token_filename)
 
@@ -184,7 +184,7 @@ def main():
                 store_report(config, account_mail, item_name, output_bytes)
 
         if args.do_dtr:
-            dtr = make_dtr(dr_config, vehicles)
+            dtr = make_dtr(args, account_mail, dr_config, vehicles)
 
     if errors:
         sys.exit(1)
@@ -1969,7 +1969,7 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster_by_vc)
         log.debug(f"found { count } people without cars")
 
 
-def make_dtr(dr_config, vehicles):
+def make_dtr(args, account, dr_config, vehicles):
     """ do a replacement for the daily transportation report.  Can be pretty stupid for now"""
 
     count_category_active = {}
@@ -1985,6 +1985,11 @@ def make_dtr(dr_config, vehicles):
     count_passengervan_psc = {}
     count_cargovan_group = {}
     count_cargovan_psc = {}
+
+    out_stream = io.StringIO()
+    def p(str):
+        """ helper routine to print to in-memory stream, for output later """
+        print(str, file=out_stream)
 
     def bump_count(count_dict, index):
         if index not in count_dict:
@@ -2095,27 +2100,27 @@ def make_dtr(dr_config, vehicles):
 
     categories = [ 'R', 'B', 'D', 'P-Van' ]
 
-    print(f"")
-    print(f"Report run: { TIMESTAMP }, DR { dr_config.dr_id }")
-    print(f"")
-    print(f"Vehicle Counts")
+    p(f"")
+    p(f"Report run: { TIMESTAMP }, DR { dr_config.dr_id }")
+    p(f"")
+    p(f"Vehicle Counts")
     dformat = "%13s %-50s %7d %7d"
     sformat = "%13s %-50s %7s %7s"
-    print(sformat % ('5266 Line No', 'Category', 'Period', 'To Date'))
-    print(dformat % ('47', 'ERVs', count_category_active.get('A', 0), count_category_all.get('A', 0)))
-    print(dformat % ('48', 'Red Cross Vehicles', count_category_active.get('C', 0), count_category_all.get('C', 0)))
-    print(f"")
-    print(dformat % ('51', 'Passenger Rental Vehicles', count_category_active.get('R', 0), count_category_all.get('R', 0)))
-    print(dformat % ('52', 'Passenger Vans', count_category_active.get('P-Van', 0), count_category_all.get('P-Van', 0)))
-    print(dformat % ('53', 'Non-Passenger Rental Vehicles/Vans', count_category_active.get('D', 0), count_category_all.get('D', 0)))
-    print(dformat % ('54', 'Box Trucks', count_category_active.get('B', 0), count_category_all.get('B', 0)))
-    print(dformat % ('55', '  Total Rental Vehicles',
+    p(sformat % ('5266 Line No', 'Category', 'Period', 'To Date'))
+    p(dformat % ('47', 'ERVs', count_category_active.get('A', 0), count_category_all.get('A', 0)))
+    p(dformat % ('48', 'Red Cross Vehicles', count_category_active.get('C', 0), count_category_all.get('C', 0)))
+    p(f"")
+    p(dformat % ('51', 'Passenger Rental Vehicles', count_category_active.get('R', 0), count_category_all.get('R', 0)))
+    p(dformat % ('52', 'Passenger Vans', count_category_active.get('P-Van', 0), count_category_all.get('P-Van', 0)))
+    p(dformat % ('53', 'Non-Passenger Rental Vehicles/Vans', count_category_active.get('D', 0), count_category_all.get('D', 0)))
+    p(dformat % ('54', 'Box Trucks', count_category_active.get('B', 0), count_category_all.get('B', 0)))
+    p(dformat % ('55', '  Total Rental Vehicles',
         sumcategory(count_category_active, categories),
         sumcategory(count_category_all, categories)))
 
-    print(f"")
-    print(f"")
-    print(f"Rental Vehicle Costs")
+    p(f"")
+    p(f"")
+    p(f"Rental Vehicle Costs")
     dformat = "%6s %-31s %6d %10d"
     sformat = "%6s %-31s %6s %10s"
 
@@ -2160,35 +2165,65 @@ def make_dtr(dr_config, vehicles):
         total_allpsc_cost += total_cost
 
         if detailed and show_details:
-            print(dformat % (psc, 'Passenger Vehicles (Cat R)', rental_count, rental_cost))
-            print(dformat % ('', 'Box Truck (Cat B)', boxtruck_count, boxtruck_cost))
-            print(dformat % ('', 'Passenger Van', pvan_count, pvan_cost))
-            print(dformat % ('', 'Non-Passenger/Cargo Van (Cat D)', van_count, van_cost))
-            print(dformat % ('', f'   Total Cost PSC { psc }', total_count, total_cost))
-            print(f"")
+            p(dformat % (psc, 'Passenger Vehicles (Cat R)', rental_count, rental_cost))
+            p(dformat % ('', 'Box Truck (Cat B)', boxtruck_count, boxtruck_cost))
+            p(dformat % ('', 'Passenger Van', pvan_count, pvan_cost))
+            p(dformat % ('', 'Non-Passenger/Cargo Van (Cat D)', van_count, van_cost))
+            p(dformat % ('', f'   Total Cost PSC { psc }', total_count, total_cost))
+            p(f"")
         elif show_details == False:
-            print(dformat % (psc, 'All Vehicles', total_count, total_cost))
+            p(dformat % (psc, 'All Vehicles', total_count, total_cost))
 
 
-    print(sformat % ( "PSC", "Description", "Veh Count", "Daily Cost"))
+    p(sformat % ( "PSC", "Description", "Veh Count", "Daily Cost"))
 
     for psc in itertools.chain(range(21, 30), [ 80 ]):
         print_psc(psc)
 
-    print(f"")
-    print(dformat % ('', 'Total All Rentals', total_allpsc_count, total_allpsc_cost))
+    p(f"")
+    p(dformat % ('', 'Total All Rentals', total_allpsc_count, total_allpsc_cost))
 
-    print(f"")
-    print(f"PSC Details")
+    p(f"")
+    p(f"PSC Details")
     for psc in itertools.chain(range(21, 30), [ 80 ]):
         print_psc(psc, show_details = True)
 
-    print(f"")
-    print(f"Cost Model:")
-    print(f"    Passenger Vehicles (Cat R): { cost_table['R'] }")
-    print(f"    Box Trucks (Cat B): { cost_table['B'] }")
-    print(f"    Non Passenger Rentals (Cat D): { cost_table['D'] }")
-    print(f"    10-14 person Passenger Vans: { cost_table['P-Van'] }")
+    p(f"")
+    p(f"Cost Model:")
+    p(f"    Passenger Vehicles (Cat R): { cost_table['R'] }")
+    p(f"    Box Trucks (Cat B): { cost_table['B'] }")
+    p(f"    Non Passenger Rentals (Cat D): { cost_table['D'] }")
+    p(f"    10-14 person Passenger Vans: { cost_table['P-Van'] }")
+
+
+    output = out_stream.getvalue()
+    out_stream.close()
+
+    if args.send_to or args.test_send:
+        # send the email
+        if account is not None:
+            m = account.new_message(resource=dr_config.send_email)
+            if args.test_send:
+                m.bcc.add(dr_config.email_bcc)
+            if args.send_to:
+                m.to.add(args.send_to)
+
+            m.subject = f"DR{ dr_config.dr_id } { DATESTAMP } Daily Transportation Report"
+
+            # add <pre> tag so outlook won't mangle plain text message
+            out_stream2 = io.StringIO()
+            out_stream2.write("<pre>")
+            out_stream2.write(output)
+            out_stream2.write("</pre>")
+            m.body = out_stream2.getvalue()
+            out_stream2.close()
+
+            if not m.send():
+                log.error(f"sending of DTR message failed")
+
+
+    if args.save or not args.send_to:
+        sys.stdout.write(output)
 
 
 
@@ -2210,6 +2245,7 @@ def parse_args():
     parser.add_argument("--mail-limit", help="max number of emails to send (default: 5)", nargs="?", const=5, type=int)
 
     parser.add_argument("--dr-id", help="the name of the DR (like 155-22)", required=True, action="append")
+    parser.add_argument("--send-to", help="list of recipients (DTR only right now)", action="append")
 
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--save-input", help="Save a copy of server inputs", action="store_true")
