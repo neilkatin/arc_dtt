@@ -614,47 +614,57 @@ def make_vehicle_index(vehicles, first_field, second_field=None, reservation=Fal
 
     #log.debug(f"make_vehicle_index: vehicles len { len(vehicles) }, 1st_field { first_field } 2nd_field { second_field }")
     result = {}
-    for row in vehicles:
-        vehicle = row['Vehicle']
-        if first_field not in vehicle:
-            continue
-
-        if second_field is not None and second_field not in vehicle:
-            continue
-
-        key = cleanup_v_field(vehicle, first_field)
-        if key is None:
-            continue
-
-        if second_field is not None:
-            second = vehicle[second_field]
-            if second is None:
-                continue
-            key = key + " " + second.strip()
-
-        key = key.upper()
-        #log.debug(f"make_vehicle_index: key '{ key }'")
-
-        if key in result:
-            old_row = result[key]
-
-            if old_row['Status'] == 'Active' and row['Status'] == Active:
-                log.error(f"Error: Duplicate rows with key '{ key }' and both are active")
-                log.info(f"DUPLICATE: key '{ key }' is already in result.\n\nExisting{ result[key] }\n\nnew { row }")
-
+    if first_field == 'DisasterVehicleID':
+        for row in vehicles:
+            key = row[first_field]
+            if key in result:
+                log.error(f"Duplicate key { key } in vehicles: old { result[key] } new { row }")
             else:
-                # at most one row is active
-                log.info(f"Error: Duplicate rows with key '{ key }', at most one active "
-                        f"(old: '{ old_row['Vehicle']['KeyNumber'] }', "
-                        f"new '{ row['Vehicle']['KeyNumber'] }')"
-                        )
+                result[key] = row
 
-                if row['Status'] == 'Active':
-                    # we know that old_row is not active, so use the current row.
-                    result[key] = row
-        else:
-            # first row with this key
-            result[key] = row
+    else:
+        for row in vehicles:
+            vehicle = row['Vehicle']
+
+            if first_field not in vehicle:
+                continue
+
+            if second_field is not None and second_field not in vehicle:
+                continue
+
+            key = cleanup_v_field(vehicle, first_field)
+            if key is None:
+                continue
+
+            if second_field is not None:
+                second = vehicle[second_field]
+                if second is None:
+                    continue
+                key = key + " " + second.strip()
+
+            key = key.upper()
+            #log.debug(f"make_vehicle_index: key '{ key }'")
+
+            if key in result:
+                old_row = result[key]
+
+                if old_row['Status'] == 'Active' and row['Status'] == 'Active':
+                    log.error(f"Error: Duplicate rows with key '{ key }' and both are active")
+                    log.info(f"DUPLICATE: key '{ key }' is already in result.\n\nExisting{ result[key] }\n\nnew { row }")
+
+                else:
+                    # at most one row is active
+                    log.info(f"Error: Duplicate rows with key '{ key }', at most one active "
+                            f"(old: '{ old_row['Vehicle']['KeyNumber'] }', "
+                            f"new '{ row['Vehicle']['KeyNumber'] }')"
+                            )
+
+                    if row['Status'] == 'Active':
+                        # we know that old_row is not active, so use the current row.
+                        result[key] = row
+            else:
+                # first row with this key
+                result[key] = row
 
     return result
 
@@ -687,7 +697,6 @@ def add_missing_avis_vehicles(vehicles, avis_all, avis_open, closed):
         key = row['MVA No']
         plate = row['License Plate State Code'] + ' ' + row['License Plate Number']
         addr_line_3 = row['Address Line 3']
-
 
         # use DisasterVehicleID as the DTT identity for a vehicle
         ra_id = get_dtt_id(v_ra, ra)
@@ -825,8 +834,13 @@ def get_dtt_id(vehicle_dict, index):
 
 
 
-def mark_cell(ws, fill, row_num, col_map, col_name, comment=None):
-    """ apply a fill to a particular cell """
+STRIKE_FONT = openpyxl.styles.Font(strike=True)
+def mark_cell(ws, fill, v_id, vid, row_num, col_map, col_name, comment=None):
+    """ apply a fill to a particular cell
+
+        v_id is a dictionary of vids to rows
+        vid is the vehicle id number
+    """
 
     col_num = col_map[col_name]
 
@@ -837,6 +851,12 @@ def mark_cell(ws, fill, row_num, col_map, col_name, comment=None):
 
     if comment is not  None:
         cell.comment = comment
+
+    if v_id is not None and vid is not None:
+        status = v_id[vid]['Status']
+        if status != 'Active':
+            log.debug(f"inactive vehicle found: { vid } status '{ status }'")
+            cell.font = STRIKE_FONT
 
 
 agency_key_fixup_punctuation = re.compile(r'[.,]')
@@ -997,6 +1017,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
     v_res= make_vehicle_index(vehicles, 'RentalAgreementReservationNumber')
     v_key = make_vehicle_index(vehicles, 'KeyNumber')
     v_plate = make_vehicle_index(vehicles, 'PlateState', 'Plate')
+    v_id = make_vehicle_index(vehicles, 'DisasterVehicleID')
 
     vid_dict = dict( (v['DisasterVehicleID'], v) for v in vehicles)
 
@@ -1026,7 +1047,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
                     f"Plate { veh['PlateState'] } { veh['Plate'] }\n"
                     , COMMENT_AUTHOR, height=300, width=400)
 
-        mark_cell(ws, fill, spreadsheet_row, columns, column_name, comment=comment)
+        mark_cell(ws, fill, v_id, vid, spreadsheet_row, columns, column_name, comment=comment)
 
     spreadsheet_row = 1
     for row in avis:
@@ -1070,11 +1091,11 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
             if avis_source == AVIS_SOURCE_OPEN_ALL:
                 fill = FILL_CYAN
 
-            mark_cell(ws, fill, spreadsheet_row, columns, 'Rental Agreement No')
-            mark_cell(ws, fill, spreadsheet_row, columns, 'Reservation No')
-            mark_cell(ws, fill, spreadsheet_row, columns, 'MVA No')
-            mark_cell(ws, fill, spreadsheet_row, columns, 'License Plate State Code')
-            mark_cell(ws, fill, spreadsheet_row, columns, 'License Plate Number')
+            mark_cell(ws, fill, v_id, ra_id,    spreadsheet_row, columns, 'Rental Agreement No')
+            mark_cell(ws, fill, v_id, res_id,   spreadsheet_row, columns, 'Reservation No')
+            mark_cell(ws, fill, v_id, key_id,   spreadsheet_row, columns, 'MVA No')
+            mark_cell(ws, fill, v_id, plate_id, spreadsheet_row, columns, 'License Plate State Code')
+            mark_cell(ws, fill, v_id, plate_id, spreadsheet_row, columns, 'License Plate Number')
 
         elif ra_id == res_id and ra_id == key_id and ra_id == plate_id:
             # all columns match: color it green
@@ -1084,11 +1105,11 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
             #if avis_source == AVIS_SOURCE_OPEN_ALL:
             #    fill = FILL_CYAN
 
-            mark_cell(ws, fill, spreadsheet_row, columns, 'Rental Agreement No')
-            mark_cell(ws, fill, spreadsheet_row, columns, 'Reservation No')
-            mark_cell(ws, fill, spreadsheet_row, columns, 'MVA No')
-            mark_cell(ws, fill, spreadsheet_row, columns, 'License Plate State Code')
-            mark_cell(ws, fill, spreadsheet_row, columns, 'License Plate Number')
+            mark_cell(ws, fill, v_id, ra_id,    spreadsheet_row, columns, 'Rental Agreement No')
+            mark_cell(ws, fill, v_id, res_id,   spreadsheet_row, columns, 'Reservation No')
+            mark_cell(ws, fill, v_id, key_id,   spreadsheet_row, columns, 'MVA No')
+            mark_cell(ws, fill, v_id, plate_id, spreadsheet_row, columns, 'License Plate State Code')
+            mark_cell(ws, fill, v_id, plate_id, spreadsheet_row, columns, 'License Plate Number')
 
             # since all four 'unique' fields match: check additional fields
             vrow = vid_dict[ra_id]
@@ -1119,9 +1140,9 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
                             f"{ agency['City'] } { agency['State'] }{ agency['Zip'] }",
                             COMMENT_AUTHOR, height=300, width=400)
 
-                mark_cell(ws, fill, spreadsheet_row, columns, 'Rental Loc Desc', comment=comment)
-                mark_cell(ws, fill, spreadsheet_row, columns, 'Address Line 1')
-                mark_cell(ws, fill, spreadsheet_row, columns, 'Address Line 3')
+                mark_cell(ws, fill, None, None, spreadsheet_row, columns, 'Rental Loc Desc', comment=comment)
+                mark_cell(ws, fill, None, None, spreadsheet_row, columns, 'Address Line 1')
+                mark_cell(ws, fill, None, None, spreadsheet_row, columns, 'Address Line 3')
 
 
             # check pickup and expected dropoff date
@@ -1174,7 +1195,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
                         fill = FILL_YELLOW
                         comment = Comment(f"DTT value is { dtt_veh_make_orig[i] } -> { v }", COMMENT_AUTHOR, height=300, width=400)
 
-                mark_cell(ws, fill, spreadsheet_row, columns, col_name, comment=comment)
+                mark_cell(ws, fill, None, None, spreadsheet_row, columns, col_name, comment=comment)
             
 
         else:
@@ -1184,12 +1205,12 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
             mark_cell_wrapper(key_id, 'KeyNumber', spreadsheet_row, columns, 'MVA No')
             mark_cell_wrapper(plate_id, 'Plate', spreadsheet_row, columns, 'License Plate Number')
 
-            mark_cell(ws, FILL_RED if plate_id is None else FILL_YELLOW, spreadsheet_row, columns, 'License Plate State Code')
+            mark_cell(ws, FILL_RED if plate_id is None else FILL_YELLOW, v_id, plate_id, spreadsheet_row, columns, 'License Plate State Code')
 
         if avis_source == AVIS_SOURCE_OPEN_ALL:
-            mark_cell(ws, FILL_YELLOW, spreadsheet_row, columns, 'Cost Control No')
+            mark_cell(ws, FILL_YELLOW, None, None, spreadsheet_row, columns, 'Cost Control No')
         elif avis_source == AVIS_SOURCE_MISSING or avis_source is None:
-            mark_cell(ws, FILL_CYAN, spreadsheet_row, columns, 'Cost Control No')
+            mark_cell(ws, FILL_CYAN, None, None, spreadsheet_row, columns, 'Cost Control No')
 
 
 
@@ -1224,6 +1245,9 @@ A row of all yellow often means a data entry error where fields from different v
 entered on the same DTT entry.
 
 Cyan fields are used when a vehicle is in the DTT but not in the Avis report.
+
+If the MVA, Reservation, Contract, or Plate fields use strike-through fonts: the vehicle is released
+in the DTT but active in the Avis report.
 
 The 'Cost Control No' column is a bit different.  This column is used to encode the DR number.
 The program tries to figure out if which DR matches, but it is not perfect.
@@ -1280,7 +1304,7 @@ def insert_overview(wb, doc_string):
     ws = wb.create_sheet('Overview')
 
     ws.column_dimensions['A'].width = 120       # hard coded width....
-    ws.row_dimensions[1].height = 500           # hard coded height....
+    ws.row_dimensions[1].height = 550           # hard coded height....
 
     cell = ws.cell(row=1, column=1, value=doc_string)
     cell.alignment = openpyxl.styles.Alignment(wrapText=True, vertical='top')
