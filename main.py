@@ -328,8 +328,7 @@ or have other tasks you think should be automated on a DR: email
 
 def send_report_common(dr_config, args, account, file_name, report_type, message_body, dest_email):
 
-    mailbox = account.mailbox()
-    message = mailbox.new_message(resource=dr_config.send_mail)
+    message = account.new_message(resource=dr_config.send_email)
 
     if args.test_send:
         message.bcc.add(dr_config.email_bcc)
@@ -1147,7 +1146,13 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
 
             # check pickup and expected dropoff date
             for (dtt_col, avis_col) in (('RentalAgreementPickupDate', 'CO Date'), ('DueDate', 'Exp CI Date')):
-                dtt_date = datetime.datetime.fromisoformat(vehicle[dtt_col]).date()
+                raw_date = vehicle[dtt_col]
+                dtt_date = None
+                try:
+                    dtt_date = datetime.datetime.fromisoformat(vehicle[dtt_col]).date()
+                except TypeError as e:
+                    log.error(f"could not convert '{ raw_date }' from field { dtt_col } to a date for vehicle key { vehicle['KeyNumber'] }", e)
+
                 col_num = columns[avis_col]
                 cell = ws.cell(row=spreadsheet_row, column=col_num)
 
