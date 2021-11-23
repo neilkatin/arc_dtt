@@ -15,11 +15,13 @@ a particular implementation plan.
 Application Overview
 --------
 
-We have a set of transportation reporting tools that automate manual tasks that the transportaton lead is supposed to do.
+We have a set of transportation reporting tools that automate manual tasks that the transportation lead is supposed to do.
 The tools currently do three main tasks:
 
-1. Reconcile the current DTT vehicles against the Avis report to show discrepencies, missing vehicles, and vehicles have been returned but not released in the DTT
-1. Prepare and format the group vehicle report.  The DTT has a version of this, but it takes manual editing of the report every day.
+1. Reconcile the current Avis vehicles listed in the DTT against the Avis report to show discrepancies,
+   missing vehicles, and vehicles have been returned but not released in the DTT
+1. Prepare and format the group vehicle report (which shows all vehicles on teh DRO).  The DTT has a version of this,
+   but the DTT report only includes rental vehicles and takes manual editing of the report every day.
 1. Messages to vehicle holders and others about the DTTs
 
 The tools have been used to support 4 DRs so far; they have been valuable enough that we would like to
