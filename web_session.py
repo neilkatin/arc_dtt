@@ -75,6 +75,9 @@ def _refresh_cookies_using_web(config, dr_config, session):
         url = config['DTT_URL']
         timeout = config['REQUESTS_TIMEOUT']
 
+        if user.lower().endswith(config['DTT_USER1_SUFFIX']):
+            password = config.DTT_PASS1
+
         cookies = LWPCookieJar(dr_config.cookie_filename)
         session.cookies = cookies
 
@@ -112,7 +115,7 @@ def _get_login_web(session, user, password, url, timeout):
 
     action_url = form.attrs['action']
 
-    log.debug(f"action_url { action_url }")
+    log.debug(f"action_url { action_url }, user '{ user }'")
 
     # replace the URL using the form submission URL
     post_url = urllib.parse.urlparse(r.url)._replace(path=action_url)._replace(query="").geturl()
