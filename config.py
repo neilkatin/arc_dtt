@@ -137,4 +137,5 @@ DRConfig('234', '22', 'DR234-22Log-Tra2@redcross.org', 'DR234-22Log-Tra2@redcros
 DRConfig('255', '22', 'DR255-22Log-Tra9@redcross.org', 'DR255-22Log-Tra9@redcross.org', 'DR255-22Log-Tra9@redcross.org', reply_email='DR255-22Log-Tra9@redcross.org')
 DRConfig('337', '22', 'DR337-22Log-Tra2@redcross.org', 'DR337-22Log-Tra2@redcross.org', 'dr337-22groupvehiclereport@AmericanRedCross.onmicrosoft.com', reply_email='DR337-22Log-Tra2@redcross.org')
 DRConfig('466', '22', 'DR466-22Log-Tra9@redcross.org', 'DR466-22Log-Tra9@redcross.org', 'DR466-22Log-Tra1@redcross.org')
+DRConfig('606', '22', 'DR606-22Log-Tra9@redcross.org', 'DR606-22Log-Tra9@redcross.org', 'harry.feirman@redcross.org', reply_email='harry.feirman2@redcross.org')
 
