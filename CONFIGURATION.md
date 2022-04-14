@@ -8,5 +8,5 @@ These are the settings that are configurable for each DR:
 | Send Email | Email account to send email as | DR255-22Log-Tra2@redcross.org |
 | Target List | Email address to send reports to | DR255-22Log-Tra1@redcross.org |
 | Reply Email | (optional) email to list as 'reply' address | first.last@redcross.org |
-| Report times | which reports to run and when to run them | Group Vehicle, Avis, Car, No-Car |
+| Report times | which reports to run and when to run them | Group Vehicle, Avis, Car, No-Car  run at 1400 Mountain time |
 
