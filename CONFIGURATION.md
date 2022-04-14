@@ -1,5 +1,7 @@
 
-These are the settings that are configurable for each DR:
+In order to run reports the DR must be set up to send the staffing reports to the NTST list, which forwards to a mailbox that I can access.
+
+These are the settings that are configurable for each DR, and I will need to set up a new DR:
 
 | name | what | example |
 | :--- | :--  | :-- |
