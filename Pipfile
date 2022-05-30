@@ -21,6 +21,8 @@ jinja2-pluralize = "*"
 xlrd = "*"
 tzdata = "*"
 vobject = "*"
+urllib3 = "*"
+certifi = "*"
 
 [requires]
 python_version = "3.9"
