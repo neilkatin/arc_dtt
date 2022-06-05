@@ -979,6 +979,7 @@ dtt_to_avis_color_dict = {
         'Gray': 'GRY',
         'Red': 'RED',
         'Brown': 'BRO',
+        'Green': 'GRN',
         }
 
 def dtt_to_avis_make(make_tuple, avis_tuple):
