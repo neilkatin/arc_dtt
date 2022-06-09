@@ -1643,6 +1643,7 @@ def add_gap_sheet(wb, sheet_name, vehicles, people, roster, activity=False):
             'Driver':       { 'width': 30, 'key': lambda x: x['CurrentDriverName'], },
             'Key Number':   { 'width': 12, 'key': lambda x: x['KeyNumber'], },
             'Vendor':       { 'width': 20, 'key': lambda x: x['Vendor'], },
+            'Cat':          { 'width':  4, 'key': lambda x: x['VehicleCategoryCode'], },
             'Car Info':     { 'width': 25, 'key': lambda x: f"{ x['Make'] } { x['Model'] } { x['Color'] }", },
             'Plate':        { 'width': 15, 'key': lambda x: f"{ x['PlateState'] } { x['Plate'] }", },
             'Type':         { 'width': 10, 'key': lambda x: x['VehicleType'], },
