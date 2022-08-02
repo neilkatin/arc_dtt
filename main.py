@@ -380,11 +380,12 @@ def fetch_avis(config, account):
 
     storage = account.storage()
     drive = storage.get_drive(config.NHQDCSDLC_DRIVEID)
-    fy21 = drive.get_item_by_path(config.FY21_ITEM_PATH)
+    fy21 = drive.get_item_by_path(config.FYxx_ITEM_PATH)
 
     children = fy21.get_items()
 
-    rental_re = re.compile(r'^ARC Open Rentals\s*-?\s*(\d{1,2})-(\d{1,2})-(\d{2,4})\.xlsx$')
+    # there are now unicode chars in the title around the dash: match anything in that region
+    rental_re = re.compile(r'^ARC Open Rentals.*(\d{1,2})-(\d{1,2})-(\d{2,4})\.xlsx$')
     count = 0
     mismatch = 0
     newest_file_date = None

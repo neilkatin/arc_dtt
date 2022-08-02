@@ -7,7 +7,7 @@ REQUESTS_TIMEOUT = 30       # seconds
 
 # info needed to access the AVIS report in National HQ's DCS Disaster Logistics Center sharepoint
 NHQDCSDLC_DRIVEID = 'b!YIeYOP1wUEiQ5GH1mh47v8SHF04bvyhIh2ptexYT3ewviNAPjQJ8SJM6MEC7Zdmh'
-FY21_ITEM_PATH = '/Gray Sky/Avis Reports/FY22 Avis Report'
+FYxx_ITEM_PATH = '/Gray Sky/Avis Reports/FY23 Avis Report'
 
 # info needed to access the Transportation file store area
 TRANS_REPORTS_DRIVEID = 'b!o_zImoyHfUGqAtgz-lV_puzIkc7DM09NtuhToAIWGRvIebczIDDAT7ZLeWVofoHk'
@@ -139,4 +139,6 @@ DRConfig('337', '22', 'DR337-22Log-Tra2@redcross.org', 'DR337-22Log-Tra2@redcros
 DRConfig('466', '22', 'DR466-22Log-Tra9@redcross.org', 'DR466-22Log-Tra9@redcross.org', 'DR466-22Log-Tra1@redcross.org')
 DRConfig('606', '22', 'DR606-22Log-Tra9@redcross.org', 'DR606-22Log-Tra9@redcross.org', 'harry.feirman@redcross.org', reply_email='harry.feirman2@redcross.org')
 DRConfig('637', '22', 'DR637-22Log-Tra9@redcross.org', 'DR637-22Log-Tra9@redcross.org', 'thomas.altavilla@redcross.org', reply_email='thomas.altavilla@redcross.org')
+
+DRConfig('766', '23', 'DR766-23Log-Tra9@redcross.org', 'DR766-23Log-Tra9@redcross.org', 'DR766-23Log-Tra1@redcross.org', reply_email='DR766-23Log-Tra1@redcross.org')
 
