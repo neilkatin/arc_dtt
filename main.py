@@ -921,7 +921,8 @@ dtt_to_avis_model_dict = {
         'CX-9': 'CX9F',
         'Durango': 'DURA',
         'Eclipse': 'ECCF',
-        'Ecosport': 'ECOA',
+        'Ecoline': 'ECOA',
+        #'Ecosport': 'ECOA',
         'Edge': 'EDE2',
         'Elantra': 'ELAN',
         'Envision': 'ENVI',
@@ -945,7 +946,9 @@ dtt_to_avis_model_dict = {
         'Journey': 'JOU2',
         'Kona': 'KONF',
         'Legacy': 'LEGA',
+        'Lincoln': 'LINC',
         'Malibu': 'MALB',
+        'MKZ': ' MKZ',      # lincoln MKZ midsize sedan
         'Mustang': 'MUST',
         'Optima': 'OPTI',
         'Outback': 'OUTB',
@@ -968,6 +971,7 @@ dtt_to_avis_model_dict = {
         'Sonata': 'SONA',
         'Sorento': 'SO7F',
         'Soul': 'SOUL',
+        'Apark': 'SPRK',
         'Sportage': 'SPO2',
         'Tacoma': 'TAC4',
         'Tahoe': 'TAHO',
@@ -1305,6 +1309,17 @@ Please help us keep the database up to date.  Send all updates to { dr_config.re
 Notes:
 
 * Groups are separated into separate tabs.
+
+* If there is no driver name: there is a vehicle reserved, but the driver
+  has not checked in yet.
+
+The Cat column is the vehicle category:
+    A - ERV or MRV
+    B - Box Truck
+    C - Chapter Vehicle
+    D - Cargo Van
+    P - Passenger Van
+    R - Rental Car
 
 This file generated at { TIMESTAMP }
 
