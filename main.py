@@ -294,7 +294,7 @@ or have other tasks you think should be automated on a DR: email
 </p>
 """
 
-    send_report_common(dr_config, args, account, file_name, "Avis Report", message_body, dr_config.reply_email)
+    send_report_common(dr_config, args, account, file_name, "Avis Report", message_body, dr_config.reply_email, extra_recipients=args.extra_avis)
 
 
 
@@ -326,12 +326,16 @@ or have other tasks you think should be automated on a DR: email
 
 
 
-def send_report_common(dr_config, args, account, file_name, report_type, message_body, dest_email):
+def send_report_common(dr_config, args, account, file_name, report_type, message_body, dest_email, extra_recipients=[]):
 
     message = account.new_message(resource=dr_config.send_email)
 
     if args.test_send:
         message.bcc.add(dr_config.email_bcc)
+
+    if len(extra_recipients):
+        log.debug(f"adding extra recipients { extra_recipients }")
+        message.bcc.add(extra_recipients)
 
     if args.send:
         message.bcc.add(dest_email)
@@ -925,7 +929,7 @@ dtt_to_avis_model_dict = {
         'Durango': 'DURA',
         'Eclipse': 'ECCF',
         'Econoline': 'ECOA',
-        #'Ecosport': 'ECOA',
+        'Ecosport': 'ECOF',
         'Edge': 'EDE2',
         'Elantra': 'ELAN',
         'Envision': 'ENVI',
@@ -934,6 +938,7 @@ dtt_to_avis_model_dict = {
         'Escape': 'ESCA',
         'Expedition': 'EXL4',
         'Explorer': 'EXL2',
+        'Express - 12 Pass': 'EX12',
         'Express - 15 Pass': 'EX15',
         'F-150': 'F150',
         'Forester': 'FORE',
@@ -952,6 +957,7 @@ dtt_to_avis_model_dict = {
         'Kicks': 'KICF',
         'Malibu': 'MALB',
         'MKZ': ' MKZ',      # lincoln MKZ midsize sedan
+        'Murano': 'MUR2',
         'Mustang': 'MUST',
         'Optima': 'OPTI',
         'Outback': 'OUTB',
@@ -983,6 +989,7 @@ dtt_to_avis_model_dict = {
         'Terrain': 'TERR',
         'Tiguan': 'TIG2',
         'Tracker': 'TRX2',
+        'Transit': 'TR15',
         'Traverse': 'TRAV',
         'Tucson': 'TUCS',
         'Versa': 'VRSA',       
@@ -2284,6 +2291,7 @@ def parse_args():
 
     parser.add_argument("--dr-id", help="the name of the DR (like 155-22)", required=True, action="append")
     parser.add_argument("--send-to", help="list of recipients (DTR only right now)", action="append")
+    parser.add_argument("--extra-avis", help="Extra avis recipients", action="append")
 
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--save-input", help="Save a copy of server inputs", action="store_true")
