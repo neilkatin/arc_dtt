@@ -385,14 +385,14 @@ def fetch_avis(config, account):
     children = fy21.get_items()
 
     # there are now unicode chars in the title around the dash: match anything in that region
-    rental_re = re.compile(r'^ARC Open Rentals.*(\d{1,2})-(\d{1,2})-(\d{2,4})\.xlsx$')
+    rental_re = re.compile(r'^ARC Open Rentals.*?(\d{1,2})-(\d{1,2})-(\d{2,4})\.xlsx$')
     count = 0
     mismatch = 0
     newest_file_date = None
     newest_ref = None
     for child in children:
 
-        #log.debug(f"child { child.name } id { child.object_id }")
+        #log.debug(f"child '{ child.name }' id { child.object_id }")
 
         # humans made the name, so there is good (but not perfect) adherence to a naming standard.
         # its something like "ARC Open Rentals - mm-dd-yyyy.xlsx", but there is variation...
@@ -895,6 +895,7 @@ dtt_to_avis_make_dict = {
         'Mazda': 'MAZD',
         'Mitsubishi': 'MITS',
         'Nissan': 'NISS',
+        'Suburban': 'SUB2',
         'Subaru': 'SUBA',
         'Toyota': 'TOYO',
         'Volkswagen': 'VOLK',
@@ -910,6 +911,7 @@ dtt_to_avis_model_dict = {
         'Cadenza': 'K5K5',
         'Camry': 'CAMR',
         'Caravan': 'GRCA',
+        'Celica': 'CHRF',
         'Charger': 'CHRT',
         'Civic': 'CIVI',
         'Cherokee': 'CHEA',
@@ -947,6 +949,7 @@ dtt_to_avis_model_dict = {
         'Journey': 'JOU2',
         'Kona': 'KONF',
         'Legacy': 'LEGA',
+        'Kicks': 'KICF',
         'Malibu': 'MALB',
         'MKZ': ' MKZ',      # lincoln MKZ midsize sedan
         'Mustang': 'MUST',
@@ -957,10 +960,12 @@ dtt_to_avis_model_dict = {
         'Passat': 'PASS',
         'Pathfinder': 'PATH',
         'Pilot': 'PILA',
+#        'Previa': 'PRIH',
         'Prius': 'PRIH',
         'RAM': 'RAR2',
         'Ranger': 'RAN4',
         'RAV 4': 'RAV4',
+        'Ridgeline': 'RID4',
         'Rio': 'RIO',
         'Rogue': 'ROG2',
         'Santa Fe': 'SANT',
