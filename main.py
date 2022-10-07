@@ -333,7 +333,7 @@ def send_report_common(dr_config, args, account, file_name, report_type, message
     if args.test_send:
         message.bcc.add(dr_config.email_bcc)
 
-    if len(extra_recipients):
+    if extra_recipients != None and len(extra_recipients) > 0:
         log.debug(f"adding extra recipients { extra_recipients }")
         message.bcc.add(extra_recipients)
 
