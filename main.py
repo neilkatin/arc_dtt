@@ -124,7 +124,7 @@ def main():
 
         if args.do_car or args.do_no_car:
             if not roster:
-                roster = get_roster(config, dr, vehicles, people)
+                roster = get_roster(config, dr, dr_config, vehicles, people)
 
             do_status_messages(dr_config, args, account_mail, vehicles, people, roster)
 
@@ -156,7 +156,7 @@ def main():
         # group vehicle report
         if args.do_group:
             if not roster:
-                roster = get_roster(config, dr, vehicles, people)
+                roster = get_roster(config, dr, dr_config, vehicles, people)
 
             # generate the group report
             output_bytes = make_group_report(config, dr_config, args, vehicles, people, roster)
@@ -190,7 +190,7 @@ def main():
         sys.exit(1)
 
 
-def get_roster(config, dr, vehicles, people):
+def get_roster(config, dr, dr_config, vehicles, people):
     roster_contents = message.fetch_dr_roster(config, dr)
     roster = message.convert_roster_to_objects(roster_contents)
 
@@ -203,7 +203,7 @@ def get_roster(config, dr, vehicles, people):
                 )
             )
 
-    preprocess_people_roster(vehicles, people, roster_by_vc)
+    preprocess_people_roster(dr_config, vehicles, people, roster_by_vc)
     return roster_by_vc
 
 
@@ -1800,10 +1800,12 @@ def add_gap_sheet(wb, sheet_name, vehicles, people, roster, activity=False):
             row += 1
 
 
-def preprocess_people_roster(vehicles, people, roster_by_vc):
+def preprocess_people_roster(dr_config, vehicles, people, roster_by_vc):
     """ mark all persons who have vehicles, and link vehicle to people and roster
         entries (if they exist)
     """
+
+    suppress_erv_mail = dr_config.suppress_erv_mail
 
     for row in vehicles:
 
@@ -1811,10 +1813,13 @@ def preprocess_people_roster(vehicles, people, roster_by_vc):
         if row['Status'] != 'Active':
             continue
 
+        #log.debug(f"row: { row }")
+
         vehicle = row['Vehicle']
 
         driver_id = vehicle['CurrentDriverPersonId']
         driver = vehicle['CurrentDriverName']
+        veh_code = vehicle['VehicleCategoryCode']
 
         if driver_id is None:
             # no driver assigned yet
@@ -1823,6 +1828,10 @@ def preprocess_people_roster(vehicles, people, roster_by_vc):
         pool = motor_pool_re.match(driver)
         if pool is not None:
             # pool vehicle; don't bother messaging
+            continue
+
+        if veh_code == "A" and suppress_erv_mail:
+            #log.debug(f"Ignoring ERV vehicle { vehicle }")
             continue
 
 
@@ -1838,8 +1847,6 @@ def preprocess_people_roster(vehicles, people, roster_by_vc):
         if PERSON_VEHICLES not in person:
             person[PERSON_VEHICLES] = []
         person[PERSON_VEHICLES].append(row)
-        if driver_id == 6517:
-            log.debug(f"appending vehicle key # { vehicle['KeyNumber'] } for driver { driver_id }")
 
         #log.debug(f"marking person { driver_id } / { driver } as having a vehicle")
 

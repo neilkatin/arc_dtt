@@ -34,7 +34,7 @@ PROGRAM_EMAIL = 'DR-Report-Automation@redcross.org'
 DR_CONFIGURATIONS = {}
 
 class DRConfig:
-    def __init__(self, dr_num, dr_year, send_email, dtt_user, target_list, reply_email=None, extra_drs=None):
+    def __init__(self, dr_num, dr_year, send_email, dtt_user, target_list, reply_email=None, extra_drs=None, suppress_erv_mail=False):
         """ extra_drs is an array of (dr_num, dr_year) tuples.  Probably rarely needed, but DR155 changed to DR285 """
         self._dr_num = dr_num.rjust(3, '0')
         self._dr_year = dr_year
@@ -51,6 +51,7 @@ class DRConfig:
         self._name = None
 
         self._extra_drs = extra_drs
+        self._suppress_erv_mail = suppress_erv_mail
 
         DR_CONFIGURATIONS[self.dr_id] = self
 
@@ -118,6 +119,10 @@ class DRConfig:
     def extra_drs(self):
         return self._extra_drs
 
+    @property
+    def suppress_erv_mail(self):
+        return self._suppress_erv_mail
+
     def get_dr_list(self):
         retval = [ (self.dr_num, self.dr_year) ]
         if self.extra_drs != None:
@@ -143,5 +148,5 @@ DRConfig('637', '22', 'DR637-22Log-Tra9@redcross.org', 'DR637-22Log-Tra9@redcros
 DRConfig('739', '23', 'DR739-23Log-Tra3@redcross.org', 'DR739-23Log-Tra3@redcross.org', 'dr739-23dailytransportationreport@AmericanRedCross.onmicrosoft.com', reply_email='DR739-23Log-Tra3@redcross.org')
 DRConfig('765', '23', 'DR765-23Log-Tra9@redcross.org', 'DR765-23Log-Tra9@redcross.org', 'DR765-23Log-Tra1@redcross.org', reply_email='harry.feirman2@redcross.org')
 DRConfig('766', '23', 'DR766-23Log-Tra9@redcross.org', 'DR766-23Log-Tra9@redcross.org', 'dr766-23dailytransportationreport@AmericanRedCross.onmicrosoft.com', reply_email='DR766-23Log-Tra1@redcross.org')
-DRConfig('836', '23', 'DR836-23Log-Tra2@redcross.org', 'DR836-23Log-Tra1@redcross.org', 'dr836-23-daily-transportation-report@AmericanRedCross.onmicrosoft.com', reply_email='DR836-23Log-Tra2@redcross.org')
+DRConfig('836', '23', 'DR836-23Log-Tra2@redcross.org', 'DR836-23Log-Tra1@redcross.org', 'dr836-23-daily-transportation-report@AmericanRedCross.onmicrosoft.com', reply_email='DR836-23Log-Tra2@redcross.org', suppress_erv_mail=True)
 
