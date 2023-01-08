@@ -151,4 +151,5 @@ DRConfig('766', '23', 'DR766-23Log-Tra9@redcross.org', 'DR766-23Log-Tra9@redcros
 DRConfig('836', '23', 'DR836-23Log-Tra2@redcross.org', 'DR836-23Log-Tra1@redcross.org', 'dr836-23-daily-transportation-report@AmericanRedCross.onmicrosoft.com', reply_email='DR836-23Log-Tra2@redcross.org', suppress_erv_mail=True)
 
 DRConfig('032', '23', 'DR032-23Log-Tra2@redcross.org', 'DR032-23Log-Tra1@redcross.org', 'dr032-23-daily-transportation-report@AmericanRedCross.onmicrosoft.com', reply_email='DR032-23Log-Tra2@redcross.org')
+DRConfig('053', '23', 'DR053-23Log-Tra2@redcross.org', 'DR053-23Log-Tra1@redcross.org', 'dr053-23Log-Tra1@redcross.org', reply_email='DR053-23Log-Tra2@redcross.org', extra_drs=[ ('055', '23') ])
 
