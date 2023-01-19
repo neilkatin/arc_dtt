@@ -294,7 +294,7 @@ or have other tasks you think should be automated on a DR: email
 </p>
 """
 
-    send_report_common(dr_config, args, account, file_name, "Avis Report", message_body, dr_config.reply_email, extra_recipients=args.extra_avis)
+    send_report_common(dr_config, args, account, file_name, "Avis Report", message_body, dr_config.avis_list, extra_recipients=args.extra_avis)
 
 
 
@@ -1067,7 +1067,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
 
             comment = Comment(
                     f"DTT id { vid } -- status { vrow['Status'] }\n"
-                    f"Driver { veh['CurrentDriverName'] }\n"
+                    f"Driver { get_current_driver(veh) }\n"
                     f"Key { veh['KeyNumber'] }\n"
                     f"Reservation { veh['RentalAgreementReservationNumber'] }\n"
                     f"Agreement { veh['RentalAgreementNumber'] }\n"
@@ -1477,7 +1477,7 @@ def get_json(config, dr_config, args, session, api_type, prefix='api/Disaster/')
                 f.write(r.content)
 
         data = r.json()
-        #log.debug(f"r.status { r.status_code } r.reason { r.reason } r.url { r.url } r.content_type { r.headers['content-type'] } data rows { len(data) }")
+        log.debug(f"r.status { r.status_code } r.reason { r.reason } r.url { r.url } r.content_type { r.headers['content-type'] } data rows { len(data) }")
 
     #log.debug(f"json { data }")
     #log.debug(f"Returned data\n{ json.dumps(data, indent=2, sort_keys=True) }")
@@ -1592,6 +1592,15 @@ def vehicle_in_pool(vehicle):
     return None
 
 
+def get_current_driver(vehicle):
+    person =  vehicle['CurrentDriverName']
+
+    if person is None or person == 'None' or person == '':
+        person = vehicle['RentalAgreementPerson']
+        log.debug(f"using rental person { person } because current driver is blank")
+
+    return person
+
 
 def get_vehicle_gap_groups(vehicles):
     """ return a sorted list of groups from the gaps in the vehicles """
@@ -1676,9 +1685,10 @@ def add_gap_sheet(wb, sheet_name, vehicles, people, roster, activity=False):
 
     ws = wb.create_sheet(sheet_name)
 
+
     column_defs = {
             'GAP':          { 'width': 15, 'key': lambda x: vehicle_to_gap(x), },
-            'Driver':       { 'width': 30, 'key': lambda x: x['CurrentDriverName'], },
+            'Driver':       { 'width': 30, 'key': lambda x: get_current_driver(x), },
             'Key Number':   { 'width': 12, 'key': lambda x: x['KeyNumber'], },
             'Vendor':       { 'width': 20, 'key': lambda x: x['Vendor'], },
             'Cat':          { 'width':  4, 'key': lambda x: x['VehicleCategoryCode'], },
@@ -1745,8 +1755,10 @@ def add_gap_sheet(wb, sheet_name, vehicles, people, roster, activity=False):
 
                 if value is None or value == 'None' or value == 'None None' or value == 'None None None':
                     # no valid data; make it a blank
+                    if key == 'Driver':
+                        log.debug(f"adding cell { row },{ col }, value '{ value }'")
                     value = ''
-                #log.debug(f"adding cell { row },{ col }, value { value }")
+                #log.debug(f"adding cell { row },{ col }, value '{ value }'")
                 cell = ws.cell(row=row, column=col, value=value)
             except:
                 log.info(f"Could not expand column { key } row_vehicle { row_vehicle }: { sys.exc_info()[0] }")
