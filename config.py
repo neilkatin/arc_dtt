@@ -34,7 +34,7 @@ PROGRAM_EMAIL = 'DR-Report-Automation@redcross.org'
 DR_CONFIGURATIONS = {}
 
 class DRConfig:
-    def __init__(self, dr_num, dr_year, send_email, dtt_user, target_list, reply_email=None, extra_drs=None, suppress_erv_mail=False, avis_list=False):
+    def __init__(self, dr_num, dr_year, send_email, dtt_user, target_list, reply_email=None, extra_drs=None, suppress_erv_mail=False, avis_list=None):
         """ extra_drs is an array of (dr_num, dr_year) tuples.  Probably rarely needed, but DR155 changed to DR285 """
         self._dr_num = dr_num.rjust(3, '0')
         self._dr_year = dr_year
@@ -46,7 +46,7 @@ class DRConfig:
         self._email_bcc = EMAIL_BCC
         self._program_email = PROGRAM_EMAIL
 
-        self._reply_email = reply_email if reply_email != None else send_email
+        self._reply_email = (reply_email if reply_email != None else send_email)
 
         self._id = None
         self._name = None
@@ -134,7 +134,7 @@ class DRConfig:
     def avis_list(self):
         if self._avis_list is not None:
             return self._avis_list
-        return self.reply_email
+        return self._reply_email
 
 
 #       DRNum   DRYear  Send Email                        DTT User                           Target List for group-vehicle
@@ -159,4 +159,8 @@ DRConfig('836', '23', 'DR836-23Log-Tra2@redcross.org', 'DR836-23Log-Tra1@redcros
 
 DRConfig('032', '23', 'DR032-23Log-Tra2@redcross.org', 'DR032-23Log-Tra1@redcross.org', 'dr032-23-daily-transportation-report@AmericanRedCross.onmicrosoft.com', reply_email='DR032-23Log-Tra2@redcross.org')
 DRConfig('053', '23', 'DR053-23Log-Tra5@redcross.org', 'DR053-23Log-Tra1@redcross.org', 'dr053-23@AmericanRedCross.onmicrosoft.com', reply_email='DR053-23Log-Tra5@redcross.org', extra_drs=[ ('055', '23') ], avis_list='dr053-23-avis-reports@AmericanRedCross.onmicrosoft.com')
+DRConfig('064', '23', 'DR064-23Log-Tra1@redcross.org', 'DR064-23Log-Tra1@redcross.org', 'dr064-23-reports@AmericanRedCross.onmicrosoft.com', reply_email='DR064-23Log-Tra1@redcross.org' )
+DRConfig('080', '23', 'DR080-23Log-Tra2@redcross.org', 'DR080-23Log-Tra2@redcross.org', 'DR080-23Log-Tra2@redcross.org', reply_email='DR080-23Log-Tra2@redcross.org' )
+DRConfig('176', '23', 'DR176-23Log-Tra2@redcross.org', 'DR176-23Log-Tra2@redcross.org', 'dr176-23-transportation-reports@AmericanRedCross.onmicrosoft.com' )
+
 
