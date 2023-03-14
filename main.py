@@ -307,8 +307,38 @@ def send_group_report(dr_config, args, account, file_name):
     message_body = \
 f"""
 <p>
-Hello everyone.  This is an automated report showing vehicles on the DR organized by GAP 'Group'
+Colleagues,
 </p>
+
+<p>
+Attached please find the Group Vehicle Report for { DATESTAMP }..
+</p>
+
+<p>
+National HQ  established a rental vehicle to staff ratio for the disaster operation as a whole:
+1 rental vehicle per 2 staff on the ground.
+</p>
+
+<p>
+To put into perspective the number of vehicles overall for the specific groups and activities,
+there is at the bottom of each tab a table noting:
+</p>
+
+<ul>
+<li>number of persons on the ground in the group and activity (listed under the labeled # MDA);</li>
+<li>total number of rentals for the group and each of the activities; and</li>
+<li>rental to staff ratio for the group and each of the activities.</li>
+</ul>
+
+<p>
+Please review the attached listing of all rental cars for you GAP with an eye towards identifying:
+</p>
+
+<ul>
+<li>persons with rental cars not listed;</li>
+<li>persons on the list who no longer have cars and to whom those cars were reassigned; and</li>
+<li>if you have more cars than needed, let Transportation know so we can have the rentals returned or provided to another GAP).</li>
+</ul>
 
 <p>
 If you have any updates or corrections: please send them to
