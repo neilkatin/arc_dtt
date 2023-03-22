@@ -352,7 +352,7 @@ or have other tasks you think should be automated on a DR: email
 </p>
 """
 
-    send_report_common(dr_config, args, account, file_name, "Group Vehicle Report", message_body, dr_config.target_list)
+    send_report_common(dr_config, args, account, file_name, "Group Vehicle Report", message_body, dr_config.target_list, extra_recipients=args.extra_group)
 
 
 
@@ -365,9 +365,11 @@ def send_report_common(dr_config, args, account, file_name, report_type, message
 
     if extra_recipients != None and len(extra_recipients) > 0:
         log.debug(f"adding extra recipients { extra_recipients }")
-        message.bcc.add(extra_recipients)
 
     if args.send:
+        if extra_recipients != None and len(extra_recipients) > 0:
+            message.bcc.add(extra_recipients)
+
         message.bcc.add(dest_email)
         log.debug(f"sending { file_name } to { dest_email }")
         posting = f"<p>This message was sent to { dest_email }.  Please do *not* reply to the whole list</p>\n"
@@ -2341,6 +2343,7 @@ def parse_args():
     parser.add_argument("--dr-id", help="the name of the DR (like 155-22)", required=True, action="append")
     parser.add_argument("--send-to", help="list of recipients (DTR only right now)", action="append")
     parser.add_argument("--extra-avis", help="Extra avis recipients", action="append")
+    parser.add_argument("--extra-group", help="Extra group/vehicle recipients", action="append")
 
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--save-input", help="Save a copy of server inputs", action="store_true")
