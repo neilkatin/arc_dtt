@@ -34,7 +34,7 @@ PROGRAM_EMAIL = 'DR-Report-Automation@redcross.org'
 DR_CONFIGURATIONS = {}
 
 class DRConfig:
-    def __init__(self, dr_num, dr_year, send_email, dtt_user, target_list, reply_email=None, extra_drs=None, suppress_erv_mail=False, avis_list=None):
+    def __init__(self, dr_num, dr_year, send_email, dtt_user, target_list, reply_email=None, extra_drs=None, suppress_erv_mail=True, avis_list=None):
         """ extra_drs is an array of (dr_num, dr_year) tuples.  Probably rarely needed, but DR155 changed to DR285 """
         self._dr_num = dr_num.rjust(3, '0')
         self._dr_year = dr_year
