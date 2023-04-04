@@ -27,13 +27,18 @@ def compute_stats(vehicles, roster, gap_prefix):
     for r in roster.values():
         gap = r['GAP(s)']
         tnm = r['T&M']
+        released = r['Released']
 
         if tnm != "MDA":
             continue
 
+        if released != "":
+            # don't count outprocessed folks
+            continue
+
         if gap_regex.match(gap):
             roster_count += 1
-            #log.debug(f"roster: adding { r['Name'] } gap { gap } prefix '{ gap_prefix }'")
+            #log.debug(f"roster: adding { r['Name'] } gap { gap } prefix '{ gap_prefix }' roster_count { roster_count }")
 
     vehicle_count = 0
     for r in vehicles:
@@ -51,7 +56,7 @@ def compute_stats(vehicles, roster, gap_prefix):
         if gap_regex.match(gap):
             vehicle_count += 1
 
-    #log.debug(f"gap_prefix { gap_prefix } roster_count { roster_count } vehicle_count { vehicle_count }")
+    log.debug(f"gap_prefix { gap_prefix } roster_count { roster_count } vehicle_count { vehicle_count }")
     return roster_count, vehicle_count
 
 
