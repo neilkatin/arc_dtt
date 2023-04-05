@@ -1564,7 +1564,7 @@ def make_group_report(config, dr_config, args, vehicles, people, roster):
 
 
 gap_to_group_re = re.compile('^([A-Z]+)/')
-gap_to_activity_re = re.compile('^([A-Z]+/[A-Z]*)/')
+gap_to_activity_re = re.compile('^([A-Z]+/[A-Z0-9]*)/')
 motor_pool_re = re.compile(r'^Motor Pool \(([^\)]*)\)$')
 def vehicle_to_group(vehicle, activity=False):
     """ turn a Gap (Group/Activity/Position) name into just the Group portion """
