@@ -7,7 +7,7 @@ REQUESTS_TIMEOUT = 30       # seconds
 
 # info needed to access the AVIS report in National HQ's DCS Disaster Logistics Center sharepoint
 NHQDCSDLC_DRIVEID = 'b!YIeYOP1wUEiQ5GH1mh47v8SHF04bvyhIh2ptexYT3ewviNAPjQJ8SJM6MEC7Zdmh'
-FYxx_ITEM_PATH = '/Gray Sky/Avis Reports/FY23 Avis Report'
+FYxx_ITEM_PATH = '/Gray Sky/Avis Reports/FY24 Avis Report'
 
 # info needed to access the Transportation file store area
 TRANS_REPORTS_DRIVEID = 'b!o_zImoyHfUGqAtgz-lV_puzIkc7DM09NtuhToAIWGRvIebczIDDAT7ZLeWVofoHk'
