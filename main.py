@@ -147,7 +147,7 @@ def main():
                 fb.write(output_bytes)
 
             if args.send or args.test_send:
-                send_avis_report(dr_config, args, account_mail, file_name)
+                send_avis_report(config, dr_config, args, account_mail, file_name)
 
 
             if not args.save:
@@ -171,7 +171,7 @@ def main():
                 fb.write(output_bytes)
 
             if args.send or args.test_send:
-                send_group_report(dr_config, args, account_mail, file_name)
+                send_group_report(config, dr_config, args, account_mail, file_name)
 
             if not args.save:
                 os.remove(file_name)
@@ -274,14 +274,25 @@ def make_vehicle_backup(config, dr_config, vehicles):
     return wb_buffer
 
 
-def send_avis_report(dr_config, args, account, file_name):
+def send_avis_report(config, dr_config, args, account, file_name):
     """ send an email with the avis report (contained in file_name).
 
         Respect the args.send and args.test_send flags (at least one of which must be set
     """
 
+    report_date = config['AVIS_FILE_DATE']
+    warn_days = 2
+    if report_date < NOW.date() - datetime.timedelta(days=warn_days):
+        date_warning = f"<span style='background-color:yellow;'>WARNING: AVIS report is more than { warn_days } days old<span>."
+    else:
+        date_warning = ""
+
     message_body = \
 f"""
+<p>
+This report is based on the AVIS report { config['AVIS_FILE'] }.
+{ date_warning }
+</p>
 <p>
 Hello everyone.  This is an automated report matching vehicles in the DTT against
 a list of vehicles provided by Avis.  The Avis list tends to be delayed by 24-48 hours.
@@ -298,7 +309,7 @@ or have other tasks you think should be automated on a DR: email
 
 
 
-def send_group_report(dr_config, args, account, file_name):
+def send_group_report(config, dr_config, args, account, file_name):
     """ send an email with the group vehicle report (contained in file_name).
 
         Respect the args.send and args.test_send flags (at least one of which must be set
@@ -421,7 +432,7 @@ def fetch_avis(config, account):
     children = fy21.get_items()
 
     # there are now unicode chars in the title around the dash: match anything in that region
-    rental_re = re.compile(r'^ARC Open Rentals.*?(\d{1,2})-(\d{1,2})-(\d{2,4})\.xlsx$')
+    rental_re = re.compile(r'^ARC Open (Rentals|Reports).*?(?P<month>\d{1,2})-(?P<day>\d{1,2})-(?P<year>\d{2,4})\.xlsx$')
     count = 0
     mismatch = 0
     newest_file_date = None
@@ -438,13 +449,19 @@ def fetch_avis(config, account):
             log.info(f"no pattern match for '{ child.name }'")
             mismatch += 1
         else:
-            month = match.group(1).lstrip('0')
-            day = match.group(2).lstrip('0')
-            year = match.group(3).lstrip('0')
+            month = match.group('month').lstrip('0')
+            day = match.group('day').lstrip('0')
+            year = match.group('year').lstrip('0')
 
-            #log.debug(f"file match: { year }-{ month }-{ day }")
+            iyear = int(year)
+            if iyear < 100:
+                # add the century back
+                now_century = NOW.year - (NOW.year % 100)
+                iyear += now_century
 
-            file_date = datetime.date(int(year), int(month), int(day))
+            #log.debug(f"file match: { iyear }-{ month }-{ day }")
+
+            file_date = datetime.date(iyear, int(month), int(day))
             if newest_file_date is None or newest_file_date < file_date:
                 newest_file_date = file_date
                 newest_ref = child
@@ -455,6 +472,7 @@ def fetch_avis(config, account):
         raise Exception("make_avis: no valid files found")
     log.debug(f"newest_file { newest_ref.name }")
     config['AVIS_FILE'] = newest_ref.name
+    config['AVIS_FILE_DATE'] = newest_file_date
 
     workbook = o365_WorkBook(newest_ref, persist=False)
 
