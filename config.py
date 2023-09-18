@@ -168,4 +168,8 @@ DRConfig('252', '23', 'DR252-23Log-Tra5@redcross.org', 'DR252-23Log-Tra5@redcros
 DRConfig('295', '23', 'DR295-23Log-Tra5@redcross.org', 'DR295-23Log-Tra5@redcross.org', 'dr295-23Log-Tra5@redcross.org' )
 DRConfig('335', '23', 'DR335-23Log-Tra5@redcross.org', 'DR335-23Log-Tra5@redcross.org', 'dr335-23-group-vehicle-reports@AmericanRedCross.onmicrosoft.com', avis_list='DR335-23-avis-reports@AmericanRedCross.onmicrosoft.com' )
 DRConfig('420', '24', 'DR420-24Log-Tra5@redcross.org', 'DR420-24Log-Tra5@redcross.org', 'dr420-24-group-vehicle-reports@AmericanRedCross.onmicrosoft.com', avis_list='DR420-24-avis-reports@AmericanRedCross.onmicrosoft.com' )
+DRConfig('462', '24', 'DR462-24Log-Tra5@redcross.org', 'DR462-24Log-Tra5@redcross.org', 'dr462-24-group-vehicle-reports@AmericanRedCross.onmicrosoft.com', avis_list='DR462-24-avis-reports@AmericanRedCross.onmicrosoft.com' )
+DRConfig('486', '24', 'DR486-24Log-Tra5@redcross.org', 'DR486-24Log-Tra5@redcross.org', 'dr486-24-group-vehicle-reports@AmericanRedCross.onmicrosoft.com', avis_list='DR486-24-avis-reports@AmericanRedCross.onmicrosoft.com' )
+DRConfig('495', '24', 'DR495-24Log-Tra5@redcross.org', 'DR495-24Log-Tra5@redcross.org', 'dr495-24-group-vehicle-reports@AmericanRedCross.onmicrosoft.com', avis_list='DR495-24-avis-reports@AmericanRedCross.onmicrosoft.com' )
+DRConfig('510', '24', 'DR510-24Log-Tra5@redcross.org', 'DR510-24Log-Tra5@redcross.org', 'dr510-24-group-vehicle-reports@AmericanRedCross.onmicrosoft.com', avis_list='DR510-24-avis-reports@AmericanRedCross.onmicrosoft.com' )
 
