@@ -327,7 +327,7 @@ Attached please find the Group Vehicle Report for { DATESTAMP }..
 
 <p>
 National HQ  established a rental vehicle to staff ratio for the disaster operation as a whole:
-1 rental vehicle per 2 staff on the ground.
+1 rental vehicle per 3 staff on the ground.
 </p>
 
 <p>
@@ -2019,6 +2019,7 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster_by_vc)
             first_name = person['FirstName']
             last_name = person['LastName']
             email = person['Email']
+            vc_id = person['VC']
 
             # ignore people that have vehicles
             if PERSON_VEHICLES in person:
@@ -2031,6 +2032,15 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster_by_vc)
             if status != 'Checked In':
                 #log.debug(f"ignoring person { first_name } { last_name }: status { status } not 'Checked In'")
                 continue
+
+            # 2nd check, since DTT lies about status
+            person_in_vc = roster_by_vc.get(vc_id)
+            if person_in_vc != None:
+                released = person_in_vc.get('Released')
+                if released != None:
+                    if released != "":
+                        log.debug(f"ignoring RELEASED person_in_vc { first_name } { last_name } { released }")
+                        continue
 
             # checked in status is often wrong; cross check against the most recent VC roster
             vc_num = person['VC']
