@@ -909,7 +909,7 @@ def mark_cell(ws, fill, v_id, vid, row_num, col_map, col_name, comment=None):
     if v_id is not None and vid is not None:
         status = v_id[vid]['Status']
         if status != 'Active':
-            log.debug(f"inactive vehicle found: { vid } status '{ status }'")
+            #log.debug(f"inactive vehicle found: { vid } status '{ status }'")
             cell.font = STRIKE_FONT
 
 
@@ -975,6 +975,7 @@ dtt_to_avis_model_dict = {
         'Corolla': 'CRLA',
         'CR-V': 'CRV4',
         'CX-5': 'CX5A',
+        'CX-50': 'C50A',
         'CX-9': 'CX9F',
         'Durango': 'DURA',
         'Eclipse': 'ECCF',
@@ -1002,6 +1003,7 @@ dtt_to_avis_model_dict = {
         'Impreza': 'IMPW',
         'Jetta': 'JETT',
         'Journey': 'JOU2',
+        'K5': 'K5K5',
         'Kona': 'KONF',
         'Legacy': 'LEGA',
         'Kicks': 'KICF',
@@ -1023,17 +1025,18 @@ dtt_to_avis_model_dict = {
         'RAV 4': 'RAV4',
         'Ridgeline': 'RID4',
         'Rio': 'RIO',
-        'Rogue': 'ROG2',
+        'Rogue': [ 'ROG2', 'ROGU' ],
         'Santa Fe': 'SANT',
         'Sedona': 'SEDO',
         'Sentra': 'SENT',
         'Sienna': 'SIEN',
         'Sierra': 'SIRA',
+        'Silverado': 'SILV',
         'Sonata': 'SONA',
         'Sorento': 'SO7F',
         'Soul': 'SOUL',
         'Spark': 'SPRK',
-        'Sportage': 'SPO2',
+        'Sportage': [ 'SPO2', 'SPOR' ],
         'Tacoma': 'TAC4',
         'Tahoe': 'TAHO',
         'Terrain': 'TERR',
@@ -1044,7 +1047,7 @@ dtt_to_avis_model_dict = {
         'Tucson': 'TUCS',
         'Versa': 'VRSA',       
         'Voyager': 'VGER',
-        'Wrangler': 'WRA4',
+        'Wrangler': [ 'WRA4', 'WRPH' ],
         'XV Crosstrex': 'XVCR',
         'Yukon': 'YUS4',
         }
@@ -1080,7 +1083,7 @@ def dtt_to_avis_make(make_tuple, avis_tuple):
         color = dtt_to_avis_color_dict[make_tuple[2]]
     else:
         # avis does't have Yellow and Beige in its list of colors
-        if make_tuple[2] != 'Yellow' and make_tuple[2] != 'Beige':
+        if make_tuple[2] != 'Yellow' and make_tuple[2] != 'Beige' and make_tuple[2] != 'UNK':
             log.debug(f"could not find color '{ make_tuple[2] }' / avis '{ avis_tuple[2] }'")
 
 
@@ -1214,7 +1217,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
                             f"DTT location is:\n"
                             f"{ agency['Name'] }\n"
                             f"{ agency['Address'] }\n"
-                            f"{ agency['City'] } { agency['State'] }{ agency['Zip'] }",
+                            f"{ agency['City'] } { agency['State'] } { agency['Zip'] }",
                             COMMENT_AUTHOR, height=300, width=400)
 
                 mark_cell(ws, fill, None, None, spreadsheet_row, columns, 'Rental Loc Desc', comment=comment)
@@ -1249,6 +1252,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
 
                     cell.fill = fill
 
+
             # check make/model/color
             avis_make_cols = ['Make', 'Model', 'Ext Color Code']
             avis_veh_make = list(row[col_name] for col_name in avis_make_cols)
@@ -1272,9 +1276,24 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
 
                 else:
 
-                    if v == avis_veh_make[i]:
-                        fill = FILL_GREEN
+                    if i == 1:
+                        #log.info(f"vehicle make { v } type { type(v) }")
+                        pass
+
+                    if type(v) == list:
+                        log.info(f"vehicle make list check { v } type { type(v) }")
+                        # list of possible string matches
+                        for possible_match in v:
+                            #log.info(f"checking values: i { i } v { v } possible_match { possible_match }")
+                            if possible_match == avis_veh_make[i]:
+                                fill = FILL_GREEN
+                                break
                     else:
+                        # single string value
+                        if v == avis_veh_make[i]:
+                            fill = FILL_GREEN
+
+                    if fill == None:
                         fill = FILL_YELLOW
                         comment = Comment(f"DTT value is { dtt_veh_make_orig[i] } -> { v }", COMMENT_AUTHOR, height=300, width=400)
 
