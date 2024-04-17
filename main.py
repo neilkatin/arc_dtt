@@ -708,10 +708,10 @@ def make_vehicle_index(vehicles, first_field, second_field=None, reservation=Fal
 
                 else:
                     # at most one row is active
-                    log.info(f"Error: Duplicate rows with key '{ key }', at most one active "
-                            f"(old: '{ old_row['Vehicle']['KeyNumber'] }', "
-                            f"new '{ row['Vehicle']['KeyNumber'] }')"
-                            )
+                    #log.info(f"Error: Duplicate rows with key '{ key }', at most one active "
+                    #        f"(old: '{ old_row['Vehicle']['KeyNumber'] }', "
+                    #        f"new '{ row['Vehicle']['KeyNumber'] }')"
+                    #        )
 
                     if row['Status'] == 'Active':
                         # we know that old_row is not active, so use the current row.
@@ -963,13 +963,14 @@ dtt_to_avis_model_dict = {
         'Accord': 'ACCO',
         'Altima': 'ALTI',
         'Cadenza': 'K5K5',
+        'Camaro': [ 'CMRO', 'CAML' ],
         'Camry': 'CAMR',
         'Caravan': 'GRCA',
         'Celica': 'CHRF',
-        'Charger': 'CHRT',
+        'Charger': 'CHAR',
         'Civic': 'CIVI',
         'Cherokee': 'CHEA',
-        'CJ': 'GLH4',
+        #'CJ': 'GLH4',  # wrong association?  Moved to Gladiator
         'Colorado': 'COL4',
         'Compass': 'CMPS',
         'Corolla': 'CRLA',
@@ -996,6 +997,7 @@ dtt_to_avis_model_dict = {
         'Forte': 'FORT',
         'Frontier': 'FRO4',
         'Fusion': 'FUSI',
+        'Gladiator': 'GLH4',
         'Golf': 'GOLF',
         'Grand Cherokee': 'GRCH',
         'Highlander': 'HIGH',
@@ -1042,9 +1044,10 @@ dtt_to_avis_model_dict = {
         'Terrain': 'TERR',
         'Tiguan': 'TIG2',
         'Tracker': 'TRX2',
+        'TrailBlazer': 'BLZ2',
         'Transit': 'TR15',
         'Traverse': 'TRAV',
-        'Tucson': 'TUCS',
+        'Tucson': [ 'TUCS', 'TUHA' ],
         'Versa': 'VRSA',       
         'Voyager': 'VGER',
         'Wrangler': [ 'WRA4', 'WRPH' ],
@@ -1281,7 +1284,7 @@ def match_avis_sheet(ws, columns, avis, vehicles, agencies):
                         pass
 
                     if type(v) == list:
-                        log.info(f"vehicle make list check { v } type { type(v) }")
+                        #log.info(f"vehicle make list check { v } type { type(v) }")
                         # list of possible string matches
                         for possible_match in v:
                             #log.info(f"checking values: i { i } v { v } possible_match { possible_match }")
