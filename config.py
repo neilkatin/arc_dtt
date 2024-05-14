@@ -177,4 +177,10 @@ DRConfig('525', '24', 'DR525-24Log-Tra5@redcross.org', 'DR525-24Log-Tra5@redcros
 DRConfig('577', '24', 'DR577-24Log-Tra5@redcross.org', 'DR577-24Log-Tra5@redcross.org', 'DR577-24-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR577-24-Avis-Reports@AmericanRedCross.onmicrosoft.com' )
 DRConfig('633', '24', 'DR633-24Log-Tra5@redcross.org', 'DR633-24Log-Tra5@redcross.org', 'DR633-24-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR633-24-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False )
 DRConfig('663', '24', 'DR663-24Log-Tra5@redcross.org', 'DR663-24Log-Tra5@redcross.org', 'DR663-24-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR663-24-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False )
+DRConfig('725', '24', 'DR725-24Log-Tra5@redcross.org', 'DR725-24Log-Tra5@redcross.org', 'DR725-24-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR725-24-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False )
+DRConfig('754', '24', 'DR754-24Log-Tra5@redcross.org', 'DR754-24Log-Tra5@redcross.org', 'DR754-24-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR754-24-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False )
+DRConfig('755', '24', 'DR755-24Log-Tra5@redcross.org', 'DR755-24Log-Tra5@redcross.org', 'DR755-24-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR755-24-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False )
+DRConfig('770', '24', 'DR770-24Log-Tra5@redcross.org', 'DR770-24Log-Tra5@redcross.org', 'DR770-24-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR770-24-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False )
+DRConfig('776', '24', 'DR776-24Log-Tra5@redcross.org', 'DR776-24Log-Tra5@redcross.org', 'DR776-24-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR776-24-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False )
+
 
