@@ -1436,12 +1436,35 @@ def read_avis_sheet(dr_config, sheet):
 
     values = sheet_range.values
 
-    values.pop(0)               # sheet title text -- before the 'data table'
+    # sometimes the Open RA sheet has the title row in different places.  Look for the title row in the first few rows
+    # Note: this depends on the 2nd column not being renamed (Rental Region Desc)
 
-    #title_row = values.pop(0)   # column headers
-    #log.debug(f"title_row { title_row }")
+    title_value = 'Rental Region Desc'
+    rows_to_search = 5
+    rows_to_skip = None
 
-    title_row = values[0]
+    for i in range(rows_to_search):
+        if values[i][1] == title_value:
+            # we found the title row
+            rows_to_skip = i
+
+    if rows_to_skip is None:
+        raise(Exception("Could not find title row in Avis spreadsheet"))
+
+    for i in range(rows_to_skip):
+        values.pop(0)
+
+    title_row = values[0]   # column headers
+    log.debug(f"rows_to_skip: { rows_to_skip } title_row { title_row }")
+
+    #title_row = values[0]
+
+    #log.debug(f"1st row { values[0][1] }")
+    #log.debug(f"2nd row { values[1][1] }")
+    #log.debug(f"3rd row { values[2][1] }")
+    #log.debug(f"4th row { values[3][1] }")
+    #log.debug(f"5th row { values[4][1] }")
+
     avis_columns = spreadsheet_tools.title_to_dict(title_row)
     avis_all = spreadsheet_tools.matrix_to_object_array(values)
 
@@ -1451,6 +1474,9 @@ def read_avis_sheet(dr_config, sheet):
     # trying to match patterns like:
     # 98, 098, DR098, DR098-21, DR098-2021, 098-21, etc...
     avis_dr = []
+
+    #log.debug(f"title_row: { title_row }")
+
     for dr_tuple in dr_config.get_dr_list():
         dr_num = dr_tuple[0]
         dr_year = dr_tuple[1]
