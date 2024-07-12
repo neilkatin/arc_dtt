@@ -192,6 +192,11 @@ def main():
 
 def get_roster(config, dr, dr_config, vehicles, people):
     roster_contents = message.fetch_dr_roster(config, dr)
+
+    if roster_contents == None:
+        log.fatal(f"could not fetch roster for { dr }" )
+        sys.exit(1)
+
     roster = message.convert_roster_to_objects(roster_contents)
 
     key_name = 'Mem#'
@@ -949,7 +954,6 @@ dtt_to_avis_make_dict = {
         'Mazda': 'MAZD',
         'Mitsubishi': 'MITS',
         'Nissan': 'NISS',
-        'Suburban': 'SUB2',
         'Subaru': 'SUBA',
         'Toyota': 'TOYO',
         'Volkswagen': 'VOLK',
@@ -975,6 +979,7 @@ dtt_to_avis_model_dict = {
         'Compass': 'CMPS',
         'Corolla': 'CRLA',
         'CR-V': 'CRV4',
+        'CX-3': 'C30A',
         'CX-5': 'CX5A',
         'CX-50': 'C50A',
         'CX-9': 'CX9F',
@@ -984,8 +989,9 @@ dtt_to_avis_model_dict = {
         'Ecosport': 'ECOF',
         'Edge': 'EDE2',
         'Elantra': 'ELAN',
-        'Envision': 'ENVI',
         'Encore': 'ENCA',
+        'Enclave': 'ENCL',
+        'Envision': 'ENVI',
         'Equinox': 'EQUI',
         'Escape': 'ESCA',
         'Expedition': 'EXL4',
@@ -1017,10 +1023,10 @@ dtt_to_avis_model_dict = {
         'Outback': 'OUTB',
         'Outlander': 'OUTL',
         'Pacifica': 'PACI',
+        'Palisade': 'PAL4',
         'Passat': 'PASS',
         'Pathfinder': 'PATH',
         'Pilot': 'PILA',
-#        'Previa': 'PRIH',
         'Prius': 'PRIH',
         'RAM': 'RAR2',
         'Ranger': 'RAN4',
@@ -1039,6 +1045,7 @@ dtt_to_avis_model_dict = {
         'Soul': 'SOUL',
         'Spark': 'SPRK',
         'Sportage': [ 'SPO2', 'SPOR' ],
+        'Suburban': 'SUB2',
         'Tacoma': 'TAC4',
         'Tahoe': 'TAHO',
         'Terrain': 'TERR',
@@ -1487,7 +1494,7 @@ def read_avis_sheet(dr_config, sheet):
         f_result = filter(lambda row: dr_regex.match(row[dr_column]), avis_all)
         avis_dr.extend( f_result )
 
-    log.debug(f"found { len(avis_dr) } vehicles associated with the DR")
+    log.debug(f"found { len(avis_dr) } vehicles associated with the DR\n\n")
     
     return title_row, avis_columns, avis_dr, avis_all
 
