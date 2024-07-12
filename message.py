@@ -68,6 +68,8 @@ def fetch_dr_roster(config, dr_id):
 
 def convert_roster_to_objects(contents):
 
+    # log.debug(f"about to open workbook.  contents { contents[0:8] }")
+
     wb = xlrd.open_workbook(file_contents=contents)
     ws = wb.sheet_by_index(0)
 
