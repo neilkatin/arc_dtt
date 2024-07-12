@@ -29,7 +29,10 @@
 	        (called "MVA" on the key tag)
 	    {% endif %}
 	    </li>
-            <li>License plate: {{ v.PlateState }} {{ v.Plate }}
+            {% if v.Make is not none %}
+            <li>Vehicle make: {{ v.Make }}</li>
+            {% endif %}
+            <li>License plate: {{ v.PlateState }} {{ v.Plate }}</li>
         </ul>
     {% endfor %}
 
