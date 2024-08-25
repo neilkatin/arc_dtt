@@ -320,7 +320,21 @@ def send_group_report(config, dr_config, args, account, file_name):
         Respect the args.send and args.test_send flags (at least one of which must be set
     """
 
-    message_body = \
+    message_body = ""
+
+    list_name = dr_config.get_list_name(dr_config.target_list)
+    if list_name is not None:
+        message_body += \
+f"""
+<p>
+To stop receiving these reports: leave the { list_name } group.
+Go to <a href='https://outlook.office.com/groups/americanredcross.onmicrosoft.com/{ list_name }/members'>this URL</a>,
+click the gear icon in the top row, and select 'leave group'.
+</p>
+"""
+
+
+    message_body += \
 f"""
 <p>
 Colleagues,

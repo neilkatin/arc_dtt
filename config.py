@@ -136,6 +136,23 @@ class DRConfig:
             return self._avis_list
         return self._reply_email
 
+    # turn an email into a list name to add remove instructions
+    def get_list_name(self, email):
+        index =  email.find('@')
+        if index == -1:
+            return None
+
+        # strip off the domain; turn to lower case
+        list_name = email[0:index]
+        list_name = list_name.lower()
+
+        # see if it is not one of the two 'standard' lists
+        if not list_name.endswith('group-vehicle-reports') and not list_name.endswith('avis-reports'):
+            return None
+
+        return list_name
+
+
 
 #       DRNum   DRYear  Send Email                        DTT User                           Target List for group-vehicle
 DRConfig('155', '22', 'DR155-22Log-Tra2@redcross.org', 'DR155-22Log-Tra2@redcross.org', 'dr155-22-tra-reports@americanredcross.onmicrosoft.com')
