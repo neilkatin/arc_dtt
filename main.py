@@ -993,7 +993,7 @@ dtt_to_avis_model_dict = {
         'Enclave': 'ENCL',
         'Envision': 'ENVI',
         'Equinox': 'EQUI',
-        'Escape': 'ESCA',
+        'Escape': [ 'ESCA', 'ESC2' ],
         'Expedition': 'EXL4',
         'Explorer': 'EXL2',
         'Express - 12 Pass': 'EX12',
@@ -1047,7 +1047,7 @@ dtt_to_avis_model_dict = {
         'Sportage': [ 'SPO2', 'SPOR' ],
         'Suburban': 'SUB2',
         'Tacoma': 'TAC4',
-        'Tahoe': 'TAHO',
+        'Tahoe': [ 'TAHO', 'TAH2' ],
         'Terrain': 'TERR',
         'Tiguan': 'TIG2',
         'Tracker': 'TRX2',
@@ -1987,7 +1987,7 @@ def preprocess_people_roster(dr_config, vehicles, people, roster_by_vc):
 def do_status_messages(dr_config, args, account, vehicles, people, roster_by_vc):
 
     vehicle_code_map = {
-            'A': 'ERV',
+            'A': 'ERV/MERV',
             'B': 'Box Truck',
             'C': 'Chapter Vehicle',
             'D': 'Delivery Vehicle',
