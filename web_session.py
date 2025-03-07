@@ -108,8 +108,9 @@ def _get_login_web(session, user, password, url, timeout):
 
     r = session.get(url, timeout=timeout)
     r.raise_for_status()
+    #r.html.render()
 
-    #log.info(f"got url { url } status_code { r.status_code } r.url { r.url } history { r.history }")
+    log.info(f"got url { url } status_code { r.status_code } r.url { r.url } history { r.history }")
 
     form = r.html.find('form', first=True)
 
@@ -134,7 +135,32 @@ def _get_login_web(session, user, password, url, timeout):
     r.raise_for_status()
 
 
-    log.info(f"got url { url } status_code { r.status_code } r.url { r.url } history { r.history }")
+    log.info(f"got url { post_url } status_code { r.status_code } r.url { r.url } history { r.history }")
+
+    if 'sso.redcross.org' in r.url:
+        log.info("after post: still on sso.redcross.org site")
+        log.debug(r.html.html)
+
+        # we have to post again.  Get the parameters
+        form = r.html.find('form', first=True)
+        if form == None:
+            log.error("could not find form on 2nd login page")
+            return
+
+        inputs = form.find('input')
+        params = {}
+        for input in inputs:
+            attrs = input.attrs
+            if attrs['type'] != 'submit':
+                log.debug(f"got an input: { input } name '{ attrs.get('name') }' value '{ attrs.get('value') }'")
+                if attrs.get('name') != None:
+                    params[attrs['name']] = attrs['value']
+        post_url = form.attrs['action']
+
+        r = session.post(post_url, data=params)
+        r.raise_for_status()
+
+        log.info(f"got url { post_url } status_code { r.status_code } r.url { r.url } history { r.history }")
 
 
 
