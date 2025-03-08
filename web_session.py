@@ -139,7 +139,7 @@ def _get_login_web(session, user, password, url, timeout):
 
     if 'sso.redcross.org' in r.url:
         log.info("after post: still on sso.redcross.org site")
-        log.debug(r.html.html)
+        #log.debug(r.html.html)
 
         # we have to post again.  Get the parameters
         form = r.html.find('form', first=True)

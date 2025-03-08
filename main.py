@@ -220,8 +220,6 @@ def get_dr_list(config, dr_config, session):
     r = session.get(url)
     r.raise_for_status()
 
-    #r.html.render()
-
     codes = r.html.find('#DisasterCodes', first=True)
 
     if codes == None:
@@ -230,34 +228,6 @@ def get_dr_list(config, dr_config, session):
         #log.debug(f"{ r.html.html }")
 
         return None
-
-        form = r.html.xpath('//form', first=True)
-        if form == None:
-            log.error("could not find form")
-            return None
-
-        inputs = form.find('input')
-        params = {}
-        for input in inputs:
-            attrs = input.attrs
-
-            if attrs['type'] != 'submit':
-                log.debug(f"got an input: { input } name '{ attrs.get('name') }' value '{ attrs.get('value') }'")
-                if attrs.get('name') != None:
-                    params[attrs['name']] = attrs['value']
-
-        post_url = form.attrs['action']
-        r = session.post(post_url, data=params)
-        r.raise_for_status()
-
-        codes = r.html.find('#DisasterCodes', first=True)
-        if codes == None:
-
-            # just for debug
-            log.error("after extra post: still no #DisasterCodes")
-            log.debug(f"{ r.html.html }")
-            return None
-
 
     options = codes.find('option')
 
