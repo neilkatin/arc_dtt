@@ -308,6 +308,11 @@ a list of vehicles provided by Avis.  The Avis list tends to be delayed by 24-48
 </p>
 
 <p>
+For background info about this report, including how to control who receives it please read
+<a href='https://americanredcross.sharepoint.com/teams/dr-tra-report-storage/SitePages/Transportation-Reports-for-Transportation-Managers.aspx'>Transportation Reports for Transportation Managers</a>
+</p>
+
+<p>
 If you have suggestions about the contents of the report or bugs in the program itself,
 or have other tasks you think should be automated on a DR: email
 <a href='mailto:{ dr_config.program_email }'>{ dr_config.program_email }</a>.
