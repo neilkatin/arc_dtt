@@ -55,12 +55,15 @@ def main():
 
 
 
-def fetch_dr_roster(config, dr_id):
+def fetch_dr_roster(config, dr_id, dr_config):
     """ get the most recent roster associated with the specified DR. """
 
     account = init_o365(config, config.TOKEN_FILENAME_AVIS)
 
-    message_match_string = f"DR { dr_id } Automated Staffing Reports"
+    log.debug(f"dr_config { dr_config }  staffing_subject { dr_config.staffing_subject }")
+    message_match_string = dr_config.staffing_subject
+    if message_match_string == None:
+        message_match_string = f"DR { dr_id } Automated Staffing Reports"
     attach_match_re = re.compile('^Staff Roster_.*')
 
     contents = search_mail(account, config.PROGRAM_EMAIL, message_match_string, attach_match_re)

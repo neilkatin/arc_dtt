@@ -191,7 +191,7 @@ def main():
 
 
 def get_roster(config, dr, dr_config, vehicles, people):
-    roster_contents = message.fetch_dr_roster(config, dr)
+    roster_contents = message.fetch_dr_roster(config, dr, dr_config)
 
     if roster_contents == None:
         log.fatal(f"could not fetch roster for { dr }" )

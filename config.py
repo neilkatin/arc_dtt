@@ -34,7 +34,7 @@ PROGRAM_EMAIL = 'DR-Report-Automation@redcross.org'
 DR_CONFIGURATIONS = {}
 
 class DRConfig:
-    def __init__(self, dr_num, dr_year, send_email, dtt_user, target_list, reply_email=None, extra_drs=None, suppress_erv_mail=True, avis_list=None):
+    def __init__(self, dr_num, dr_year, send_email, dtt_user, target_list, reply_email=None, extra_drs=None, suppress_erv_mail=True, avis_list=None, staffing_subject=None):
         """ extra_drs is an array of (dr_num, dr_year) tuples.  Probably rarely needed, but DR155 changed to DR285 """
         self._dr_num = dr_num.rjust(3, '0')
         self._dr_year = dr_year
@@ -53,6 +53,7 @@ class DRConfig:
 
         self._extra_drs = extra_drs
         self._suppress_erv_mail = suppress_erv_mail
+        self._staffing_subject = staffing_subject
 
         DR_CONFIGURATIONS[self.dr_id] = self
 
@@ -119,6 +120,10 @@ class DRConfig:
     @property
     def extra_drs(self):
         return self._extra_drs
+
+    @property
+    def staffing_subject(self):
+        return self._staffing_subject
 
     @property
     def suppress_erv_mail(self):
@@ -223,6 +228,14 @@ DRConfig('268', '25', 'DR268-25Log-TRA5@redcross.org', 'DR268-25Log-TRA5@redcros
 DRConfig('344', '25', 'DR344-25Log-TRA5@redcross.org', 'DR344-25Log-TRA5@redcross.org', 'DR344-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR344-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False )
 DRConfig('363', '25', 'DR363-25Log-TRA5@redcross.org', 'DR363-25Log-TRA5@redcross.org', 'DR363-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR363-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False )
 DRConfig('370', '25', 'DR370-25Log-TRA5@redcross.org', 'DR370-25Log-TRA5@redcross.org', 'DR370-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR370-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False )
+DRConfig('500', '25', 'DR500-25Log-TRA5@redcross.org', 'DR500-25Log-TRA5@redcross.org', 'DR500-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR500-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False )
+DRConfig('484', '25', 'DR484-25Log-TRA5@redcross.org', 'DR484-25Log-TRA5@redcross.org', 'DR484-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR484-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False )
+DRConfig('503', '25', 'DR503-25Log-TRA5@redcross.org', 'DR503-25Log-TRA5@redcross.org', 'DR503-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR503-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False )
+DRConfig('539', '25', 'DR539-25Log-TRA5@redcross.org', 'DR539-25Log-TRA5@redcross.org', 'DR539-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR539-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('535', '25', 'DR535-25Log-TRA5@redcross.org', 'DR535-25Log-TRA5@redcross.org', 'DR535-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR535-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('515', '25', 'DR515-25Log-TRA5@redcross.org', 'DR515-25Log-TRA5@redcross.org', 'DR515-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR539-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False, staffing_subject='DR515-25 Automated Staffing Reports')
+
+
 
 
 
