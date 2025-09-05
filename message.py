@@ -63,7 +63,7 @@ def fetch_dr_roster(config, dr_id, dr_config):
     log.debug(f"dr_config { dr_config }  staffing_subject { dr_config.staffing_subject }")
     message_match_string = dr_config.staffing_subject
     if message_match_string == None:
-        message_match_string = f"DR { dr_id } Automated Staffing Reports"
+        message_match_string = f"DR { dr_id } Automated Workforce Reports"
     attach_match_re = re.compile('^Staff Roster_.*')
 
     contents = search_mail(account, config.PROGRAM_EMAIL, message_match_string, attach_match_re)
