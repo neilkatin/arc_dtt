@@ -980,6 +980,7 @@ dtt_to_avis_make_dict = {
         'Subaru': 'SUBA',
         'Toyota': 'TOYO',
         'Volkswagen': 'VOLK',
+        'Volvo': 'VOLV',
         }
 dtt_to_avis_model_dict = {
         '3': '3SED',
@@ -989,9 +990,12 @@ dtt_to_avis_model_dict = {
         'Acadia': 'ACA2',
         'Accord': 'ACCO',
         'Altima': 'ALTI',
+        'Atlas': 'ATLF',
+        'Blazer': 'BLZ4',
+        'Bronco': 'BRSP',
         'Cadenza': 'K5K5',
         'Camaro': [ 'CMRO', 'CAML' ],
-        'Camry': 'CAMR',
+        'Camry': [ 'CAMR', 'CMHY' ],
         'Caravan': 'GRCA',
         'Celica': 'CHRF',
         'Charger': 'CHAR',
@@ -1003,6 +1007,7 @@ dtt_to_avis_model_dict = {
         'Corolla': 'CRLA',
         'CR-V': 'CRV4',
         'CX-3': 'C30A',
+        'CX-30': 'C30A',
         'CX-5': 'CX5A',
         'CX-50': 'C50A',
         'CX-9': 'CX9F',
@@ -1013,7 +1018,7 @@ dtt_to_avis_model_dict = {
         'Ecosport': 'ECOF',
         'Edge': [ 'EDE2', 'EDE4' ],
         'Elantra': 'ELAN',
-        'Encore': 'ENCA',
+        'Encore': [ 'ENCA', 'EGXF' ],
         'Enclave': 'ENCL',
         'Envision': 'ENVI',
         'Equinox': 'EQUI',
@@ -1035,8 +1040,10 @@ dtt_to_avis_model_dict = {
         'Hornet PHEV AWD': 'HORA',
         'HR-V': 'HRVA',
         'Impreza': 'IMPW',
+        'IONIQ': 'IEVA',
         'Jetta': 'JETT',
         'Journey': 'JOU2',
+        'K4': 'K4K4',
         'K5': 'K5K5',
         'Kona': 'KONF',
         'Legacy': 'LEGA',
@@ -1045,6 +1052,7 @@ dtt_to_avis_model_dict = {
         'MKZ': ' MKZ',      # lincoln MKZ midsize sedan
         'Murano': 'MUR2',
         'Mustang': [ 'MUST', 'MUSC' ],
+        'MX-30': 'C30A',
         'Optima': 'OPTI',
         'Outback': 'OUTB',
         'Outlander': 'OUTL',
@@ -1056,7 +1064,7 @@ dtt_to_avis_model_dict = {
         'Prius': 'PRIH',
         'RAM': [ 'RAR2', 'RAC4' ],
         'Ranger': 'RAN4',
-        'RAV 4': [ 'RAV4', 'RAVH' ],
+        'RAV 4': [ 'RAV4', 'RAVH', 'RAV2' ],
         'Ridgeline': 'RID4',
         'Rio': 'RIO',
         'Rogue': [ 'ROG2', 'ROGU' ],
@@ -1084,7 +1092,9 @@ dtt_to_avis_model_dict = {
         'Versa': 'VRSA',       
         'Voyager': 'VGER',
         'Wrangler': [ 'WRA4', 'WRPH' ],
+        'V60': 'V60A',
         'XV Crosstrex': 'XVCR',
+        'Venue': 'VENF',
         'Yukon': 'YUS4',
         }
 dtt_to_avis_color_dict = {
@@ -1557,6 +1567,8 @@ def get_vehicles(config, dr_config, args, session):
     """ Retrieve the vehicle list from the DTT (as a json list) """
 
     data = get_json(config, dr_config, args, session, 'Vehicles')
+    log.debug(f"read vehicles: { len(data) } vehicles found")
+    #log.debug(f"vehicles { data }")
     return data
 
 def get_agencies(config, dr_config, args, session):
@@ -1743,7 +1755,7 @@ def get_vehicle_gap_groups(vehicles):
 
     for row in vehicles:
 
-        if row['Status'] != 'Active':
+        if row['Status'] != 'Active' and row['Status'] != 'Transferred':
             continue
 
         vehicle = row['Vehicle']
@@ -1858,8 +1870,8 @@ def add_gap_sheet(wb, sheet_name, vehicles, people, roster, activity=False):
     for vehicle in vehicles:
 
         # only process active vehicles
-        if vehicle['Status'] != 'Active':
-            #log.debug(f"ignorning inactive vehicle { vehicle }")
+        if vehicle['Status'] != 'Active' and vehicle['Status'] != 'Transferred':
+            #log.debug(f"ignorning inactive vehicle, status { vehicle['Status'] }")
             continue
 
         row += 1
@@ -1884,6 +1896,9 @@ def add_gap_sheet(wb, sheet_name, vehicles, people, roster, activity=False):
                 lookup_func = defs['key']
                 value = lookup_func(row_vehicle)
 
+                #if key == "Key Number":
+                #    log.debug(f"add_gap_sheet: key { key } value { value }")
+
                 if value is None or value == 'None' or value == 'None None' or value == 'None None None':
                     # no valid data; make it a blank
                     if key == 'Driver':
@@ -1893,6 +1908,7 @@ def add_gap_sheet(wb, sheet_name, vehicles, people, roster, activity=False):
                 cell = ws.cell(row=row, column=col, value=value)
             except:
                 log.info(f"Could not expand column { key } row_vehicle { row_vehicle }: { sys.exc_info()[0] }")
+
 
     # ZZZ: horrible hack; for some reason the no-gap table makes excel unhappy; I haven't been
     # able to figure out why, so I'm just not adding a table for that sheet
@@ -2138,7 +2154,7 @@ def do_status_messages(dr_config, args, account, vehicles, people, roster_by_vc)
                 #log.debug(f"ignoring person { first_name } { last_name }: location type is virtual")
                 continue
 
-            log.debug(f"({ i }) person { first_name } { last_name } { person['PersonID'] } { status } has no vehicles")
+            #log.debug(f"({ i }) person { first_name } { last_name } { person['PersonID'] } { status } has no vehicles")
 
             context = {
                     'first_name': first_name,

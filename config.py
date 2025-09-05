@@ -234,6 +234,15 @@ DRConfig('503', '25', 'DR503-25Log-TRA5@redcross.org', 'DR503-25Log-TRA5@redcros
 DRConfig('539', '25', 'DR539-25Log-TRA5@redcross.org', 'DR539-25Log-TRA5@redcross.org', 'DR539-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR539-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
 DRConfig('535', '25', 'DR535-25Log-TRA5@redcross.org', 'DR535-25Log-TRA5@redcross.org', 'DR535-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR535-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
 DRConfig('515', '25', 'DR515-25Log-TRA5@redcross.org', 'DR515-25Log-TRA5@redcross.org', 'DR515-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR539-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False, staffing_subject='DR515-25 Automated Staffing Reports')
+DRConfig('549', '25', 'DR549-25Log-TRA5@redcross.org', 'DR549-25Log-TRA5@redcross.org', 'DR549-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR549-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('550', '25', 'DR550-25Log-TRA5@redcross.org', 'DR550-25Log-TRA5@redcross.org', 'DR550-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR550-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('548', '25', 'DR548-25Log-TRA5@redcross.org', 'DR548-25Log-TRA5@redcross.org', 'DR548-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR548-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('586', '25', 'DR586-25Log-TRA5@redcross.org', 'DR586-25Log-TRA5@redcross.org', 'DR586-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR586-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('594', '25', 'DR594-25Log-TRA5@redcross.org', 'DR594-25Log-TRA5@redcross.org', 'DR594-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR594-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('740', '26', 'DR740-26Log-TRA5@redcross.org', 'DR740-26Log-TRA5@redcross.org', 'DR740-26-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR740-26-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('558', '26', 'DR558-26Log-TRA5@redcross.org', 'DR558-26Log-TRA5@redcross.org', 'DR558-26-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR558-26-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('691', '26', 'DR691-26Log-TRA5@redcross.org', 'DR691-26Log-TRA5@redcross.org', 'DR691-26-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR691-26-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('661', '25', 'DR661-25Log-TRA5@redcross.org', 'DR661-25Log-TRA5@redcross.org', 'DR661-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR661-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
 
 
 
