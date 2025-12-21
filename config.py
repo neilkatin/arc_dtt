@@ -7,7 +7,7 @@ REQUESTS_TIMEOUT = 30       # seconds
 
 # info needed to access the AVIS report in National HQ's DCS Disaster Logistics Center sharepoint
 NHQDCSDLC_DRIVEID = 'b!YIeYOP1wUEiQ5GH1mh47v8SHF04bvyhIh2ptexYT3ewviNAPjQJ8SJM6MEC7Zdmh'
-FYxx_ITEM_PATH = '/Gray Sky/Avis Reports/FY24 Avis Report'
+FYxx_ITEM_PATH = '/Gray Sky/Avis Reports/Current Avis Reports'
 
 # info needed to access the Transportation file store area
 TRANS_REPORTS_DRIVEID = 'b!o_zImoyHfUGqAtgz-lV_puzIkc7DM09NtuhToAIWGRvIebczIDDAT7ZLeWVofoHk'
@@ -243,7 +243,9 @@ DRConfig('740', '26', 'DR740-26Log-TRA5@redcross.org', 'DR740-26Log-TRA5@redcros
 DRConfig('558', '26', 'DR558-26Log-TRA5@redcross.org', 'DR558-26Log-TRA5@redcross.org', 'DR558-26-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR558-26-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
 DRConfig('691', '26', 'DR691-26Log-TRA5@redcross.org', 'DR691-26Log-TRA5@redcross.org', 'DR691-26-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR691-26-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
 DRConfig('661', '25', 'DR661-25Log-TRA5@redcross.org', 'DR661-25Log-TRA5@redcross.org', 'DR661-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR661-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
-
+DRConfig('676', '25', 'DR676-25Log-TRA5@redcross.org', 'DR676-25Log-TRA5@redcross.org', 'DR676-25-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR676-25-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('793', '26', 'DR793-26Log-TRA5@redcross.org', 'DR793-26Log-TRA5@redcross.org', 'DR793-26-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR793-26-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('033', '26', 'DR033-26Log-TRA5@redcross.org', 'DR033-26Log-TRA5@redcross.org', 'DR033-26-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR033-26-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
 
 
 
