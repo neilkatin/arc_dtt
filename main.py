@@ -1546,6 +1546,7 @@ def read_avis_sheet(dr_config, sheet):
 def init_o365(config, token_filename=None):
     """ do initial setup to get a handle on office 365 graph api """
 
+    log.info(f"init_o365: token_filename %s", token_filename)
     if token_filename != None:
         o365 = arc_o365.arc_o365.arc_o365(config, token_filename=token_filename)
     else:
