@@ -23,6 +23,8 @@ tzdata = "*"
 vobject = "*"
 urllib3 = "*"
 certifi = "*"
+lxml-html-clean = "*"
+pudb = "*"
 
 [requires]
 python_version = "3.12"

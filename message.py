@@ -96,21 +96,23 @@ def convert_roster_to_objects(contents):
 def search_mail(account, mailbox_email, message_match_string, attach_match_re):
     mailbox = account.mailbox(resource=mailbox_email)
 
-    q = mailbox.new_query()
-    q = q.order_by('sentDateTime', ascending=False)
+    builder = mailbox.new_query()
     dt = datetime.datetime(1900, 1, 1)
-    q = q.on_attribute('sentDateTime').greater_equal(dt)
-    q = q.on_attribute('subject').contains(message_match_string)
+    contents = builder.chain_and(
+            builder.greater('sentDateTime', dt),
+            builder.contains('subject', message_match_string))
+
+    
+    #messages = mailbox.get_messages(query=contents, order_by=order, limit=1, download_attachments=False)
+    messages = mailbox.get_messages(query=contents, order_by="sentDateTime desc", limit=1, download_attachments=False)
 
 
-    messages = mailbox.get_messages(query=q, limit=1, download_attachments=False)
     message = next(messages, None)
-
     if message is None:
         log.error(f"Failed to read any messages that match { q }")
         return None
 
-    #log.debug(f"message { message } sent { message.sent }")
+    log.debug(f"message { message } sent { message.sent }")
 
     message.attachments.download_attachments()
     attachments = message.attachments
