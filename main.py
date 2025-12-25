@@ -73,6 +73,20 @@ NO_GAP_GROUP = 'ZZZ-No-GAP'
 MASTER = 'Master'
 
 
+SCOPES_DRO_EMAIL = [
+        #'https://graph.microsoft.com/Files.ReadWrite.All',
+        #'https://graph.microsoft.com/Mail.Read',
+        #'https://graph.microsoft.com/Mail.Read.Shared',
+        'https://graph.microsoft.com/Mail.Send',
+        'https://graph.microsoft.com/Mail.Send.Shared',
+        'https://graph.microsoft.com/offline_access',
+        #'https://graph.microsoft.com/User.Read',
+        #'https://graph.microsoft.com/User.ReadBasic.All',
+        #'https://graph.microsoft.com/Contacts.ReadWrite',
+        #'https://graph.microsoft.com/Contacts.ReadWrite.Shared',
+        #'https://graph.microsoft.com/Sites.ReadWrite.All',
+        ]
+
 def main():
     args = parse_args()
     if args.debug:
@@ -119,7 +133,7 @@ def main():
 
         if args.send or args.test_send or args.send_to:
             log.debug(f"initializing mail account: { dr_config.token_filename }")
-            account_mail = init_o365(config, dr_config.token_filename)
+            account_mail = init_o365(config, dr_config.token_filename, scopes=SCOPES_DRO_EMAIL)
 
 
         if args.do_car or args.do_no_car:
@@ -1544,14 +1558,11 @@ def read_avis_sheet(dr_config, sheet):
 
 
 
-def init_o365(config, token_filename=None):
+def init_o365(config, token_filename, scopes=None):
     """ do initial setup to get a handle on office 365 graph api """
 
     log.info(f"init_o365: token_filename %s", token_filename)
-    if token_filename != None:
-        o365 = arc_o365.arc_o365.arc_o365(config, token_filename=token_filename)
-    else:
-        o365 = arc_o365.arc_o365.arc_o365(config)
+    o365 = arc_o365.arc_o365.arc_o365(config, token_filename, scopes=scopes)
 
     account = o365.get_account()
     if account is None:
