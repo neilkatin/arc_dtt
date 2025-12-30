@@ -1948,9 +1948,9 @@ def add_gap_sheet(wb, sheet_name, vehicles, people, roster, activity=False):
     total_vehicles = 0
     stat_results = []
     for g in seen_groups.keys():
-        roster_count, vehicle_count = veh_stats.compute_stats(vehicles, roster, g)
+        roster_count, vehicle_count, category_breakdown = veh_stats.compute_stats(vehicles, roster, g)
         total_vehicles += vehicle_count
-        stat_results.append({ 'group': g, 'roster': roster_count, 'vehicle': vehicle_count })
+        stat_results.append({ 'group': g, 'roster': roster_count, 'vehicle': vehicle_count, 'category_breakdown': category_breakdown })
 
     if total_vehicles != 0:
         row += 2
@@ -1962,9 +1962,11 @@ def add_gap_sheet(wb, sheet_name, vehicles, people, roster, activity=False):
         ws.cell(row=row, column=4, value="Ratio").number_format = "#,###.00"
         row += 1
 
+        category_breakdown_all = None
         for stat in stat_results:
             roster_count = stat['roster']
             vehicle_count = stat['vehicle']
+            category_breakdown = stat['category_breakdown']
 
             if vehicle_count == 0:
                 continue
@@ -1976,6 +1978,33 @@ def add_gap_sheet(wb, sheet_name, vehicles, people, roster, activity=False):
             ws.cell(row=row, column=3, value=vehicle_count)
             ws.cell(row=row, column=4, value=ratio).number_format = "#,###.00"
             row += 1
+
+            if stat['group'] == "ALL":
+                category_breakdown_all = category_breakdown
+
+        if category_breakdown_all is not None:
+            # skip a row
+            row += 1
+
+
+            # title row
+            ws.cell(row=row, column=1, value="Vehicle totals by vehicle type")
+            row += 1
+
+            # column headings
+            ws.cell(row=row, column=1, value="Group Code")
+            ws.cell(row=row, column=2, value="Group Desc")
+            ws.cell(row=row, column=3, value="# of Vehicles")
+            row += 1
+
+            # and the totals
+            for category in sorted(category_breakdown.keys()):
+                ws.cell(row=row, column=1, value=category)
+                ws.cell(row=row, column=2, value=vehicle_category_code_to_string(category))
+                ws.cell(row=row, column=3, value=category_breakdown[category]['count']).number_format = "#,###"
+                row += 1
+
+
 
 
 def preprocess_people_roster(dr_config, vehicles, people, roster_by_vc):
@@ -2044,22 +2073,23 @@ def preprocess_people_roster(dr_config, vehicles, people, roster_by_vc):
             vehicle[TnM] = ''
 
 
+vehicle_code_map = {
+        'A': 'ERV/MERV',
+        'B': 'Box Truck',
+        'C': 'Chapter Vehicle',
+        'D': 'Delivery Vehicle',
+        'R': 'Rental Vehicle',
+        'L': 'Loaned Vehicle',
+        'POV': 'Personal Vehicle',
+        }
+def vehicle_category_code_to_string(code):
+    #string = vehicle_code_map.get(code)
+    #log.debug(f"vehicle_category: code '{ code }' string '{ string }'")
+    return vehicle_code_map.get(code)
+
 
 def do_status_messages(dr_config, args, account, vehicles, people, roster_by_vc):
 
-    vehicle_code_map = {
-            'A': 'ERV/MERV',
-            'B': 'Box Truck',
-            'C': 'Chapter Vehicle',
-            'D': 'Delivery Vehicle',
-            'R': 'Rental Vehicle',
-            'L': 'Loaned Vehicle',
-            'POV': 'Personal Vehicle',
-            }
-    def vehicle_category_code_to_string(code):
-        #string = vehicle_code_map.get(code)
-        #log.debug(f"vehicle_category: code '{ code }' string '{ string }'")
-        return vehicle_code_map.get(code)
 
     key_name = 'Mem#'
 

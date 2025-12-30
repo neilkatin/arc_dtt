@@ -41,14 +41,21 @@ def compute_stats(vehicles, roster, gap_prefix):
             #log.debug(f"roster: adding { r['Name'] } gap { gap } prefix '{ gap_prefix }' roster_count { roster_count }")
 
     vehicle_count = 0
+    category_breakdown = {}
     for r in vehicles:
 
         if r['Status'] != 'Active':
             continue
 
         veh = r['Vehicle']
+        category = veh['VehicleCategoryCode']
 
-        if veh['VehicleCategoryCode'] != 'R':
+        if category not in category_breakdown:
+            category_breakdown[category] = { 'category': category, 'count': 0 }
+
+        category_breakdown[category]['count'] += 1
+
+        if category != 'R':
             continue
 
         gap = main.vehicle_to_gap(r['Vehicle'])
@@ -57,6 +64,6 @@ def compute_stats(vehicles, roster, gap_prefix):
             vehicle_count += 1
 
     log.debug(f"gap_prefix { gap_prefix } roster_count { roster_count } vehicle_count { vehicle_count }")
-    return roster_count, vehicle_count
+    return roster_count, vehicle_count, category_breakdown
 
 
