@@ -1,6 +1,8 @@
 [submodule "neil_tools"]
 	path = neil_tools
-	url = https://github.com/neilkatin/neil_tools
+	url = github2:neilkatin/neil_tools
+	branch = main
 [submodule "arc_o365"]
 	path = arc_o365
-	url = https://github.com/neilkatin/arc_o365.git
+	url = github2:neilkatin/arc_o365.git
+	branch = main
