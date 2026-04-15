@@ -64,7 +64,7 @@ def fetch_dr_roster(config, dr_id, dr_config):
     message_match_string = dr_config.staffing_subject
     if message_match_string == None:
         message_match_string = f"DR { dr_id } Automated Workforce Reports"
-    attach_match_re = re.compile('^Staff Roster_.*')
+    attach_match_re = re.compile('^Staff Roster( -)?( Cumulative)?_.*')
 
     contents = search_mail(account, config.PROGRAM_EMAIL, message_match_string, attach_match_re)
     return contents
@@ -119,7 +119,7 @@ def search_mail(account, mailbox_email, message_match_string, attach_match_re):
     #log.debug(f"attachments len: { len(attachments) }")
 
     for attachment in attachments:
-        #log.debug(f"attachment { attachment } size { attachment.size }")
+        log.debug(f"attachment { attachment } size { attachment.size }")
         if attach_match_re.search(attachment.name) != None:
             content = base64.b64decode(attachment.content)
             log.debug(f"found a match: { attachment.name } size { attachment.size } len { len(content) }")
