@@ -250,6 +250,9 @@ DRConfig('033', '26', 'DR033-26Log-TRA5@redcross.org', 'DR033-26Log-TRA5@redcros
 DRConfig('097', '26', 'DR097-26Log-TRA5@redcross.org', 'DR097-26Log-TRA5@redcross.org', 'DR097-26-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR097-26-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
 DRConfig('113', '26', 'DR113-26Log-TRA5@redcross.org', 'DR113-26Log-TRA5@redcross.org', 'DR113-26-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR113-26-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
 DRConfig('157', '26', 'DR157-26Log-TRA5@redcross.org', 'DR157-26Log-TRA5@redcross.org', 'DR157-26-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR157-26-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('268', '26', 'DR268-26Log-TRA5@redcross.org', 'DR268-26Log-TRA5@redcross.org', 'DR268-26-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR268-26-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('346', '26', 'DR346-26Log-TRA5@redcross.org', 'DR346-26Log-TRA5@redcross.org', 'DR346-26-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR346-26-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
+DRConfig('313', '26', 'DR313-26Log-TRA5@redcross.org', 'DR313-26Log-TRA5@redcross.org', 'DR313-26-Group-Vehicle-Reports@AmericanRedCross.onmicrosoft.com', avis_list='DR313-26-Avis-Reports@AmericanRedCross.onmicrosoft.com', suppress_erv_mail=False)
 
 
 
