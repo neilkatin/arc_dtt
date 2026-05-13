@@ -474,7 +474,7 @@ def fetch_avis(config, account):
     children = fy21.get_items()
 
     # there are now unicode chars in the title around the dash: match anything in that region
-    rental_re = re.compile(r'^ARC Open (Rentals|Reports).*?(?P<month>\d{1,2})-(?P<day>\d{1,2})-(?P<year>\d{2,4})\.xlsx$')
+    rental_re = re.compile(r'^ARC.Open.(Rentals|Reports).*?(?P<month>\d{1,2})-(?P<day>\d{1,2})-(?P<year>\d{2,4})\.xlsx$')
     count = 0
     mismatch = 0
     newest_file_date = None
