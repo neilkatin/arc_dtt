@@ -96,6 +96,11 @@ def main():
     config = neil_tools.init_config(config_static, ".env")
 
     errors = False
+
+    if args.store_avis:
+        retval = do_store_avis(config)
+        return retval
+
     for dr in args.dr_id:
         if dr not in config.DR_CONFIGURATIONS:
             log.error(f"specified DR ID '{ dr }' not found in configured DRs.  Valid DRs are { list(config.DR_CONFIGURATIONS.keys()) }")
@@ -202,6 +207,43 @@ def main():
 
     if errors:
         sys.exit(1)
+
+
+#
+# read the avis report from the dr-report-automation mailbox, and save it in sharepoint
+#
+def do_store_avis(config):
+
+    # read the attachment
+    contents, sent_dt = message.fetch_avis_open_closed(config)
+
+    if contents == None:
+        log.error("Could not find a recent avis report in mailbox")
+        return 1
+
+    # save it to sharepoint
+    account = init_o365(config, config.TOKEN_FILENAME_AVIS)
+    storage = account.storage()
+    drive = storage.get_drive(config.NHQDCSDLC_DRIVEID)
+    top_folder = drive.get_item_by_path(config.FYxx_ITEM_PATH + "/neil-test")
+
+    month_folder_name = sent_dt.strftime("%Y-%m")
+    result = top_folder.get_items(query=f"name eq '{ month_folder_name }'")
+    month_folder = next(result, None)
+
+    if month_folder is None:
+        # need to create the folder
+        month_folder = top_folder.create_child_folder(month_folder_name)
+    else:
+        log.debug(f"found an existing folder { month_folder }")
+
+    top_folder = drive.get_item_by_path(config.FYxx_ITEM_PATH + "/neil-test")
+    stream = io.BytesIO(contents)
+    file_base = "ARC Open Rentals - "
+    file_name = sent_dt.strftime(file_base + "%m-%d-%y.xlsx")
+    new_item = month_folder.upload_file(None, file_name, stream=stream, stream_size=len(contents))
+    log.debug(f"new item: '{ new_item }'")
+    return 0
 
 
 def get_roster(config, dr, dr_config, vehicles, people):
@@ -2509,12 +2551,13 @@ def parse_args():
     parser.add_argument("--do-car", help="Generate vehicle status messages", action="store_true")
     parser.add_argument("--do-no-car", help="Generate vehicle status messages", action="store_true")
     parser.add_argument("--do-dtr", help="generate daily transportation report", action="store_true")
+    parser.add_argument("--store-avis", help="save a copy of the avis report in sharepoint", action="store_true")
     parser.add_argument("--send", help="Send messages to the actual intended recipients", action="store_true")
     parser.add_argument("--save", help="Keep a copy of the generated report", action="store_true")
     parser.add_argument("--test-send", help="Add the test email account to message recipients", action="store_true")
     parser.add_argument("--mail-limit", help="max number of emails to send (default: 5)", nargs="?", const=5, type=int)
 
-    parser.add_argument("--dr-id", help="the name of the DR (like 155-22)", required=True, action="append")
+    parser.add_argument("--dr-id", help="the name of the DR (like 155-22)", action="append")
     parser.add_argument("--send-to", help="list of recipients (DTR only right now)", action="append")
     parser.add_argument("--extra-avis", help="Extra avis recipients", action="append")
     parser.add_argument("--extra-group", help="Extra group/vehicle recipients", action="append")
@@ -2525,9 +2568,34 @@ def parse_args():
 
     args = parser.parse_args()
 
-    if not args.do_avis and not args.do_group and not args.do_car and not args.do_no_car and not args.do_dtr:
+    if not args.do_avis and \
+            not args.do_group and \
+            not args.do_car and \
+            not args.do_no_car and \
+            not args.do_dtr and \
+            not args.store_avis:
         log.error("At least one of do-avis, do-group, do-car, do-no-car, or do-dtr must be specified")
         sys.exit(1)
+
+    if args.store_avis:
+        if args.do_avis or \
+                args.do_group or \
+                args.do_car or \
+                args.do_no_car or \
+                args.do_dtr:
+            log.error("Cannot specify both store-avis and any of do_avis, do_group, do_car, do_no_car, do_dtr options")
+            sys.exit(1)
+
+        
+
+    if args.do_avis or \
+            args.do_group or \
+            args.do_car or \
+            args.do_no_car or \
+            args.do_dtr:
+        if not args.dr_id:
+            log.error("Must specify a --dr-id for do_avis, do_group, do_car, do_no_car, do_dtr options")
+            sys.exit(1)
 
     return args
 
