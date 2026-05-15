@@ -1,3 +1,4 @@
 #! /bin/bash
 
-PIPENV_DONT_LOAD_ENV=true pipenv run ./main.py --debug --store-avis
+#PIPENV_DONT_LOAD_ENV=true pipenv run ./main.py --debug --store-avis
+PIPENV_DONT_LOAD_ENV=true pipenv run ./main.py --debug --dr-id 313-26 --do-avis --test-send

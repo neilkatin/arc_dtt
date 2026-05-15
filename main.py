@@ -97,8 +97,10 @@ def main():
 
     errors = False
 
+    account_avis = None
     if args.store_avis:
-        retval = do_store_avis(config)
+        account_avis = init_o365(config, config.TOKEN_FILENAME_AVIS)
+        retval = do_store_avis(config, account_avis)
         return retval
 
     for dr in args.dr_id:
@@ -110,7 +112,6 @@ def main():
         sys.exit(1)
 
 
-    account_avis = None
     for dr in args.dr_id:
         roster = None
         dr_config = config.DR_CONFIGURATIONS[dr]
@@ -212,17 +213,16 @@ def main():
 #
 # read the avis report from the dr-report-automation mailbox, and save it in sharepoint
 #
-def do_store_avis(config):
+def do_store_avis(config, account):
 
     # read the attachment
-    contents, sent_dt = message.fetch_avis_open_closed(config)
+    contents, sent_dt = message.fetch_avis_open_closed(config, account)
 
     if contents == None:
         log.error("Could not find a recent avis report in mailbox")
         return 1
 
     # save it to sharepoint
-    account = init_o365(config, config.TOKEN_FILENAME_AVIS)
     storage = account.storage()
     drive = storage.get_drive(config.NHQDCSDLC_DRIVEID)
     top_folder = drive.get_item_by_path(config.FYxx_ITEM_PATH + "/neil-test")
@@ -347,7 +347,7 @@ def send_avis_report(config, dr_config, args, account, file_name):
 
     report_date = config['AVIS_FILE_DATE']
     warn_days = 2
-    if report_date < NOW.date() - datetime.timedelta(days=warn_days):
+    if report_date < NOW - datetime.timedelta(days=warn_days):
         date_warning = f"<span style='background-color:yellow;'>WARNING: AVIS report is more than { warn_days } days old<span>."
     else:
         date_warning = ""
@@ -355,7 +355,7 @@ def send_avis_report(config, dr_config, args, account, file_name):
     message_body = \
 f"""
 <p>
-This report is based on the AVIS report { config['AVIS_FILE'] }.
+This report is based on the AVIS report dated { config['AVIS_FILE_DATE'] }.
 { date_warning }
 </p>
 <p>
@@ -509,56 +509,16 @@ f"""
 def fetch_avis(config, account):
     """ get the most recent avis workbook """
 
-    storage = account.storage()
-    drive = storage.get_drive(config.NHQDCSDLC_DRIVEID)
-    fy21 = drive.get_item_by_path(config.FYxx_ITEM_PATH)
+    contents, sent_dt = message.fetch_avis_open_closed(config, account)
 
-    children = fy21.get_items()
+    if contents is None:
+        raise Exception("fetch_avis: no valid files found")
+    log.debug(f"sent_dt { sent_dt }")
+    config['AVIS_FILE_DATE'] = sent_dt
 
-    # there are now unicode chars in the title around the dash: match anything in that region
-    rental_re = re.compile(r'^ARC.Open.(Rentals|Reports).*?(?P<month>\d{1,2})-(?P<day>\d{1,2})-(?P<year>\d{2,4})\.xlsx$')
-    count = 0
-    mismatch = 0
-    newest_file_date = None
-    newest_ref = None
-    for child in children:
+    stream = io.BytesIO(contents)
 
-        #log.debug(f"child '{ child.name }' id { child.object_id }")
-
-        # humans made the name, so there is good (but not perfect) adherence to a naming standard.
-        # its something like "ARC Open Rentals - mm-dd-yyyy.xlsx", but there is variation...
-        match = rental_re.match(child.name)
-        count += 1
-        if match is None:
-            log.info(f"no pattern match for '{ child.name }'")
-            mismatch += 1
-        else:
-            month = match.group('month').lstrip('0')
-            day = match.group('day').lstrip('0')
-            year = match.group('year').lstrip('0')
-
-            iyear = int(year)
-            if iyear < 100:
-                # add the century back
-                now_century = NOW.year - (NOW.year % 100)
-                iyear += now_century
-
-            #log.debug(f"file match: { iyear }-{ month }-{ day }")
-
-            file_date = datetime.date(iyear, int(month), int(day))
-            if newest_file_date is None or newest_file_date < file_date:
-                newest_file_date = file_date
-                newest_ref = child
-
-    log.debug(f"total items: { count } mismatched { mismatch }")
-
-    if newest_ref is None:
-        raise Exception("make_avis: no valid files found")
-    log.debug(f"newest_file { newest_ref.name }")
-    config['AVIS_FILE'] = newest_ref.name
-    config['AVIS_FILE_DATE'] = newest_file_date
-
-    workbook = o365_WorkBook(newest_ref, persist=False)
+    workbook = openpyxl.load_workbook(stream)
 
     return workbook
 
@@ -574,10 +534,10 @@ def make_avis(config, dr_config, account, vehicles, agencies):
     log.debug(f"sheet names: { output_wb.sheetnames }")
 
     # we now have the latest file.  Suck out all the data
-    avis_open_title, avis_open_columns, avis_open, avis_open_all = read_avis_sheet(dr_config, avis_wb.get_worksheet('Open RA'))
+    avis_open_title, avis_open_columns, avis_open, avis_open_all = read_avis_sheet(dr_config, avis_wb['Open RA'])
     add_missing_avis_vehicles(vehicles, avis_open_all, avis_open, closed=False)
 
-    #avis_closed_title, avis_closed_columns, avis_closed, avis_closed_all = read_avis_sheet(dr_config, avis_wb.get_worksheet('Closed RA'))
+    #avis_closed_title, avis_closed_columns, avis_closed, avis_closed_all = read_avis_sheet(dr_config, avis_wb['Closed RA'])
     #add_missing_avis_vehicles(vehicles, avis_closed_all, avis_closed, closed=True)
 
     # generate the 'Open RA' sheet
@@ -636,6 +596,8 @@ def copy_avis_sheet(ws, columns, title, rows):
     col = 1
     output_columns = {}
     for index, key in enumerate(title):
+        log.debug(f"copy_avis_sheet: index '{ index }' key '{ key }'")
+
         if key != '' and key != 'CO Time' and key != 'Exp CI Time' and not key.startswith('__'):
             cell = ws.cell(row=row, column=col, value=key)
             cell.alignment = wrap_alignment
@@ -1466,7 +1428,7 @@ The program tries to figure out if which DR matches, but it is not perfect.
 If there is a vehicle in the DTT for this DR that has a different entry in the Cost Control No
 field: the entry will be yellow.
 
-This file based on the { config.AVIS_FILE } file
+This file based on the Avis report dated { config.AVIS_FILE_DATE } file
 This file generated at { TIMESTAMP }
 
 """
@@ -1535,12 +1497,14 @@ def insert_overview(wb, doc_string):
 
 def read_avis_sheet(dr_config, sheet):
 
-    log.debug(f"sheet name { sheet.name }")
-    sheet_range = sheet.get_used_range()
+    #log.debug(f"sheet name { sheet.name }")
 
-    #log.debug(f"last_column { sheet_range.get_last_column() } last_row { sheet_range.get_last_row() }")
+    log.debug(f"last_column { sheet.max_column } last_row { sheet.max_row }")
 
-    values = sheet_range.values
+    # convert all the cell values into a list (of rows) and list (of cell values)
+    values = list(sheet.iter_rows(min_col=2, values_only=True))
+
+    #log.debug(f"values is { values }")
 
     # sometimes the Open RA sheet has the title row in different places.  Look for the title row in the first few rows
     # Note: this depends on the 2nd column not being renamed (Rental Region Desc)
@@ -1550,7 +1514,7 @@ def read_avis_sheet(dr_config, sheet):
     rows_to_skip = None
 
     for i in range(rows_to_search):
-        if values[i][1] == title_value:
+        if values[i][0] == title_value:
             # we found the title row
             rows_to_skip = i
 
@@ -1561,7 +1525,7 @@ def read_avis_sheet(dr_config, sheet):
         values.pop(0)
 
     title_row = values[0]   # column headers
-    log.debug(f"rows_to_skip: { rows_to_skip } title_row { title_row }")
+
 
     #title_row = values[0]
 
@@ -1573,9 +1537,18 @@ def read_avis_sheet(dr_config, sheet):
 
     avis_columns = spreadsheet_tools.title_to_dict(title_row)
     avis_all = spreadsheet_tools.matrix_to_object_array(values)
+    #log.debug(f"avis_all: { avis_all }")
+
+    # filter out None values from title row
+    title_row = filter(lambda value: value is not None, title_row)
+    log.debug(f"rows_to_skip: { rows_to_skip } title_row { title_row }")
+
 
     # the DR number format (in the 'Cost Control No' column) isn't well 
     dr_column = 'Cost Control No'
+
+    #for r in avis_all:
+    #    log.debug(f"{ dr_column}: { r[dr_column] }")
 
     # trying to match patterns like:
     # 98, 098, DR098, DR098-21, DR098-2021, 098-21, etc...

@@ -75,9 +75,8 @@ def fetch_dr_roster(config, dr_id, dr_config):
 #
 # search the shared mailbox for the avis open/closed email
 #
-def fetch_avis_open_closed(config):
+def fetch_avis_open_closed(config, account):
 
-    account = init_o365(config, config.TOKEN_FILENAME_AVIS)
     message_contains_string = "ARC_Open_and_Closed_Rental_Rpt was executed at"
     attach_match_re = re.compile(r'^ARC_Open_and_Closed_Rental_Rpt.xlsx$')
     contents, sent_dt = search_mail(account, config.PROGRAM_EMAIL, message_contains_string, attach_match_re)
