@@ -225,7 +225,7 @@ def do_store_avis(config, account):
     # save it to sharepoint
     storage = account.storage()
     drive = storage.get_drive(config.NHQDCSDLC_DRIVEID)
-    top_folder = drive.get_item_by_path(config.FYxx_ITEM_PATH + "/neil-test")
+    top_folder = drive.get_item_by_path(config.FYxx_ITEM_PATH)
 
     month_folder_name = sent_dt.strftime("%Y-%m")
     result = top_folder.get_items(query=f"name eq '{ month_folder_name }'")
@@ -237,7 +237,6 @@ def do_store_avis(config, account):
     else:
         log.debug(f"found an existing folder { month_folder }")
 
-    top_folder = drive.get_item_by_path(config.FYxx_ITEM_PATH + "/neil-test")
     stream = io.BytesIO(contents)
     file_base = "ARC Open Rentals - "
     file_name = sent_dt.strftime(file_base + "%m-%d-%y.xlsx")
