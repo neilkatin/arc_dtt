@@ -110,18 +110,18 @@ def _get_login_web(session, user, password, url, timeout):
     r.raise_for_status()
     #r.html.render()
 
-    log.info(f"got url { url } status_code { r.status_code } r.url { r.url } history { r.history }")
+    #log.info(f"got url { url } status_code { r.status_code } r.url { r.url } history { r.history }")
 
     form = r.html.find('form', first=True)
 
     action_url = form.attrs['action']
 
-    log.debug(f"action_url { action_url }, user '{ user }'")
+    #log.debug(f"action_url { action_url }, user '{ user }'")
 
     # replace the URL using the form submission URL
     post_url = urllib.parse.urlparse(r.url)._replace(path=action_url)._replace(query="").geturl()
 
-    log.debug(f"post_url { post_url }")
+    #log.debug(f"post_url { post_url }")
 
     payload = {
             'pf.username': user,
@@ -135,7 +135,7 @@ def _get_login_web(session, user, password, url, timeout):
     r.raise_for_status()
 
 
-    log.info(f"got url { post_url } status_code { r.status_code } r.url { r.url } history { r.history }")
+    #log.info(f"got url { post_url } status_code { r.status_code } r.url { r.url } history { r.history }")
 
     if 'sso.redcross.org' in r.url:
         log.info("after post: still on sso.redcross.org site")

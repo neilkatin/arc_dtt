@@ -128,7 +128,7 @@ def main():
                 errors = True
                 continue
 
-        log.debug(f"DR_ID { dr }")
+        #log.debug(f"DR_ID { dr }")
 
         # get people and vehicles from the DTT
         vehicles = get_vehicles(config, dr_config, args, session)
@@ -138,7 +138,7 @@ def main():
         account_mail = None
 
         if args.send or args.test_send or args.send_to:
-            log.debug(f"initializing mail account: { dr_config.token_filename }")
+            #log.debug(f"initializing mail account: { dr_config.token_filename }")
             account_mail = init_o365(config, dr_config.token_filename, scopes=SCOPES_DRO_EMAIL)
 
 
@@ -162,13 +162,12 @@ def main():
                 store_report(config, account_avis, file_name, output_bytes)
 
             # save a local copy
-            log.debug(f"storing avis report to { file_name }")
+            #log.debug(f"storing avis report to { file_name }")
             with open(file_name, "wb") as fb:
                 fb.write(output_bytes)
 
             if args.send or args.test_send:
                 send_avis_report(config, dr_config, args, account_mail, file_name)
-
 
             if not args.save:
                 os.remove(file_name)
@@ -289,7 +288,7 @@ def get_dr_list(config, dr_config, session):
     for option in options:
         value = option.attrs['value']
         text = option.text
-        log.debug(f"option value { value } text { text }")
+        #log.debug(f"option value { value } text { text }")
 
     # for now, while we only have access to one DR: pick the last value
     dr_config.id = value
@@ -568,7 +567,7 @@ def workbook_to_buffer(wb):
     writer.save()
 
     bufferview = iobuffer.getbuffer()
-    log.debug(f"output spreadsheet length: { len(bufferview) }")
+    #log.debug(f"output spreadsheet length: { len(bufferview) }")
 
     return bufferview
 
@@ -595,7 +594,7 @@ def copy_avis_sheet(ws, columns, title, rows):
     col = 1
     output_columns = {}
     for index, key in enumerate(title):
-        log.debug(f"copy_avis_sheet: index '{ index }' key '{ key }'")
+        #log.debug(f"copy_avis_sheet: index '{ index }' key '{ key }'")
 
         if key != '' and key != 'CO Time' and key != 'Exp CI Time' and not key.startswith('__'):
             cell = ws.cell(row=row, column=col, value=key)
@@ -671,7 +670,7 @@ def copy_avis_sheet(ws, columns, title, rows):
 
     last_col_letter = openpyxl.utils.get_column_letter(col -1)
     table_ref = f"A1:{last_col_letter}{row}"
-    log.debug(f"last col letter { last_col_letter }, table_ref { table_ref }")
+    #log.debug(f"last col letter { last_col_letter }, table_ref { table_ref }")
     table = openpyxl.worksheet.table.Table(displayName='AvisOpen', ref=table_ref)
     ws.add_table(table)
 
@@ -1498,7 +1497,7 @@ def read_avis_sheet(dr_config, sheet):
 
     #log.debug(f"sheet name { sheet.name }")
 
-    log.debug(f"last_column { sheet.max_column } last_row { sheet.max_row }")
+    #log.debug(f"last_column { sheet.max_column } last_row { sheet.max_row }")
 
     # convert all the cell values into a list (of rows) and list (of cell values)
     values = list(sheet.iter_rows(min_col=2, values_only=True))
@@ -1540,7 +1539,7 @@ def read_avis_sheet(dr_config, sheet):
 
     # filter out None values from title row
     title_row = filter(lambda value: value is not None, title_row)
-    log.debug(f"rows_to_skip: { rows_to_skip } title_row { title_row }")
+    #log.debug(f"rows_to_skip: { rows_to_skip } title_row { title_row }")
 
 
     # the DR number format (in the 'Cost Control No' column) isn't well 
@@ -1653,7 +1652,7 @@ def get_json(config, dr_config, args, session, api_type, prefix='api/Disaster/')
                 f.write(r.content)
 
         data = r.json()
-        log.debug(f"r.status { r.status_code } r.reason { r.reason } r.url { r.url } r.content_type { r.headers['content-type'] } data rows { len(data) }")
+        #log.debug(f"r.status { r.status_code } r.reason { r.reason } r.url { r.url } r.content_type { r.headers['content-type'] } data rows { len(data) }")
 
     #log.debug(f"json { data }")
     #log.debug(f"Returned data\n{ json.dumps(data, indent=2, sort_keys=True) }")

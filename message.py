@@ -63,7 +63,7 @@ def fetch_dr_roster(config, dr_id, dr_config):
 
     account = init_o365(config, config.TOKEN_FILENAME_AVIS)
 
-    log.debug(f"dr_config { dr_config }  staffing_subject { dr_config.staffing_subject }")
+    #log.debug(f"dr_config { dr_config }  staffing_subject { dr_config.staffing_subject }")
     message_contains_string = dr_config.staffing_subject
     if message_contains_string == None:
         message_contains_string = f"DR { dr_id } Automated Workforce Reports"
@@ -80,7 +80,7 @@ def fetch_avis_open_closed(config, account):
     message_contains_string = "ARC_Open_and_Closed_Rental_Rpt was executed at"
     attach_match_re = re.compile(r'^ARC_Open_and_Closed_Rental_Rpt.xlsx$')
     contents, sent_dt = search_mail(account, config.PROGRAM_EMAIL, message_contains_string, attach_match_re)
-    log.debug(f"sent_dt was '{ sent_dt }'")
+    #log.debug(f"sent_dt was '{ sent_dt }'")
     return contents, sent_dt
 
 
@@ -128,15 +128,14 @@ def search_mail(account, mailbox_email, message_match_string, attach_match_re):
         log.error(f"Failed to read any messages that match { q }")
         return None, None
 
-    log.debug(f"message { message } sent { message.sent }")
+    #log.debug(f"message { message } sent { message.sent }")
 
     message.attachments.download_attachments()
     attachments = message.attachments
-    # ZZZ: 2026-05-13: turned on
-    log.debug(f"attachments len: { len(attachments) }")
+    #log.debug(f"attachments len: { len(attachments) }")
 
     for attachment in attachments:
-        log.debug(f"attachment { attachment } size { attachment.size }")
+        #log.debug(f"attachment { attachment } size { attachment.size }")
         if attach_match_re.search(attachment.name) != None:
             content = base64.b64decode(attachment.content)
             log.debug(f"found a match: { attachment.name } size { attachment.size } len { len(content) }")
